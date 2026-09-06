@@ -7,7 +7,7 @@ plugins {
 dependencies {
     compileOnly(libs.annotations)
     dokkaPlugin(libs.dokka.java.plugin)
-    testImplementation("junit:junit:4.13.2")
+    testImplementation(libs.junit)
 }
 
 java {

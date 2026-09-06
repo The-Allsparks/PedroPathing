@@ -23,12 +23,24 @@ android {
     defaultConfig {
         minSdk = 21
     }
+
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+        unitTests.all {
+            val coreJar = project(":core").tasks.named("jar")
+            it.dependsOn(coreJar)
+            it.classpath += coreJar.get().outputs.files
+        }
+    }
 }
 
 dependencies {
     compileOnly(libs.bundles.ftc)
     api(project(":core"))
     dokkaPlugin(libs.dokka.java.plugin)
+    testImplementation(libs.junit)
+    testImplementation(libs.bundles.ftc)
+    testImplementation(project(":core"))
 }
 
 val dokkaJar = tasks.register<Jar>("dokkaJar") {

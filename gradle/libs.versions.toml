@@ -1,7 +1,9 @@
 [versions]
+junit = "4.13.2"
 ftc = "11.1.0"
 
 [libraries]
+junit = { group = "junit", name = "junit", version.ref = "junit" }
 ftc-robot-core = { group = "org.firstinspires.ftc", name = "RobotCore", version.ref = "ftc" }
 ftc-hardware = { group = "org.firstinspires.ftc", name = "Hardware", version.ref = "ftc" }
 annotations = { group = "org.jetbrains", name = "annotations", version = "23.0.0" }
