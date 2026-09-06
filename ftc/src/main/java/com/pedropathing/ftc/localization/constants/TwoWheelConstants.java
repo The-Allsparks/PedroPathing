@@ -24,7 +24,7 @@ public class TwoWheelConstants {
      * Default Value: .001989436789 */
     public double strafeTicksToDistance = .001989436789;
 
-    /** The y offset of the forward encoder (Deadwheel) from the center of the robot
+    /** The y offset of the forward encoder (Deadwheel) from the center of the robot, in the selected follower length unit.
      * Default Value: 1 */
     public double forwardPodY = 1;
 

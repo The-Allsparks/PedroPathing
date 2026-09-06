@@ -4,7 +4,8 @@ import com.pedropathing.ftc.localization.Encoder;
 
 public class DriveEncoderConstants {
     /**
-     * Encoder ticks to follower {@link com.pedropathing.math.LengthUnit} for forward travel.
+     * Encoder ticks to follower length unit for forward travel.
+     * Supply selected-follower-unit per tick, not inches per tick, when the follower is not in inches.
      */
     public double forwardTicksToDistance = 1;
     /**
@@ -17,7 +18,9 @@ public class DriveEncoderConstants {
      */
     public double turnTicksToRadians = 1;
 
+    /** Robot width in the selected follower length unit. */
     public double robot_Width = 1;
+    /** Robot length in the selected follower length unit. */
     public double robot_Length = 1;
 
     public double leftFrontEncoderDirection = Encoder.REVERSE;
