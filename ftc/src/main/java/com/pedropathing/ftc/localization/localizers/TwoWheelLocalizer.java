@@ -37,8 +37,8 @@ public class TwoWheelLocalizer implements Localizer {
     private double previousIMUOrientation;
     private double deltaRadians;
     private double totalHeading;
-    public static double FORWARD_TICKS_TO_INCHES;
-    public static double STRAFE_TICKS_TO_INCHES;
+    public static double FORWARD_TICKS_TO_DISTANCE;
+    public static double STRAFE_TICKS_TO_DISTANCE;
 
     /**
      * This creates a new TwoWheelLocalizer from a HardwareMap, with a starting Pose at (0,0)
@@ -58,8 +58,8 @@ public class TwoWheelLocalizer implements Localizer {
      * @param setStartPose the Pose to start from
      */
     public TwoWheelLocalizer(HardwareMap map, TwoWheelConstants constants,Pose setStartPose) {
-        FORWARD_TICKS_TO_INCHES = constants.forwardTicksToInches;
-        STRAFE_TICKS_TO_INCHES = constants.strafeTicksToInches;
+        FORWARD_TICKS_TO_DISTANCE = constants.forwardTicksToDistance;
+        STRAFE_TICKS_TO_DISTANCE = constants.strafeTicksToDistance;
         imu = constants.imu;
         strafePodX = constants.strafePodX;
         forwardPodY = constants.forwardPodY;
@@ -216,9 +216,9 @@ public class TwoWheelLocalizer implements Localizer {
     public Matrix getRobotDeltas() {
         Matrix returnMatrix = new Matrix(3,1);
         // x/forward movement
-        returnMatrix.set(0,0, FORWARD_TICKS_TO_INCHES * forwardEncoder.getDeltaPosition() + forwardPodY * deltaRadians);
+        returnMatrix.set(0,0, FORWARD_TICKS_TO_DISTANCE * forwardEncoder.getDeltaPosition() + forwardPodY * deltaRadians);
         //y/strafe movement
-        returnMatrix.set(1,0, STRAFE_TICKS_TO_INCHES * strafeEncoder.getDeltaPosition() - strafePodX * deltaRadians);
+        returnMatrix.set(1,0, STRAFE_TICKS_TO_DISTANCE * strafeEncoder.getDeltaPosition() - strafePodX * deltaRadians);
         // theta/turning
         returnMatrix.set(2,0, deltaRadians);
         return returnMatrix;
@@ -237,24 +237,24 @@ public class TwoWheelLocalizer implements Localizer {
 
     /**
      * This returns the multiplier applied to forward movement measurement to convert from encoder
-     * ticks to inches. This is found empirically through a tuner.
+     * ticks to the follower length unit. This is found empirically through a tuner.
      *
-     * @return returns the forward ticks to inches multiplier
+     * @return returns the forward ticks to distance multiplier
      */
     @Override
     public double getForwardMultiplier() {
-        return FORWARD_TICKS_TO_INCHES;
+        return FORWARD_TICKS_TO_DISTANCE;
     }
 
     /**
      * This returns the multiplier applied to lateral/strafe movement measurement to convert from
-     * encoder ticks to inches. This is found empirically through a tuner.
+     * encoder ticks to the follower length unit. This is found empirically through a tuner.
      *
-     * @return returns the lateral/strafe ticks to inches multiplier
+     * @return returns the lateral/strafe ticks to distance multiplier
      */
     @Override
     public double getLateralMultiplier() {
-        return STRAFE_TICKS_TO_INCHES;
+        return STRAFE_TICKS_TO_DISTANCE;
     }
 
     /**

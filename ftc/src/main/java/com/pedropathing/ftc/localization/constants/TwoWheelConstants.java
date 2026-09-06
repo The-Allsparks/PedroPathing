@@ -18,11 +18,11 @@ public class TwoWheelConstants {
 
     /** The number of follower length units per tick of the encoder for forward movement
      * Default Value: .001989436789 */
-    public double forwardTicksToInches = .001989436789;
+    public double forwardTicksToDistance = .001989436789;
 
     /** The number of follower length units per tick of the encoder for lateral movement (strafing)
      * Default Value: .001989436789 */
-    public double strafeTicksToInches = .001989436789;
+    public double strafeTicksToDistance = .001989436789;
 
     /** The y offset of the forward encoder (Deadwheel) from the center of the robot
      * Default Value: 1 */
@@ -68,22 +68,26 @@ public class TwoWheelConstants {
         defaults();
     }
 
-    public TwoWheelConstants forwardTicksToInches(double forwardTicksToInches) {
-        this.forwardTicksToInches = forwardTicksToInches;
-        return this;
-    }
-
-    public TwoWheelConstants strafeTicksToInches(double strafeTicksToInches) {
-        this.strafeTicksToInches = strafeTicksToInches;
-        return this;
-    }
-
     public TwoWheelConstants forwardTicksToDistance(double forwardTicksToDistance) {
-        return forwardTicksToInches(forwardTicksToDistance);
+        this.forwardTicksToDistance = forwardTicksToDistance;
+        return this;
     }
 
     public TwoWheelConstants strafeTicksToDistance(double strafeTicksToDistance) {
-        return strafeTicksToInches(strafeTicksToDistance);
+        this.strafeTicksToDistance = strafeTicksToDistance;
+        return this;
+    }
+
+    /** @deprecated use {@link #forwardTicksToDistance(double)} */
+    @Deprecated
+    public TwoWheelConstants forwardTicksToInches(double forwardTicksToInches) {
+        return forwardTicksToDistance(forwardTicksToInches);
+    }
+
+    /** @deprecated use {@link #strafeTicksToDistance(double)} */
+    @Deprecated
+    public TwoWheelConstants strafeTicksToInches(double strafeTicksToInches) {
+        return strafeTicksToDistance(strafeTicksToInches);
     }
 
     public TwoWheelConstants forwardPodY(double forwardPodY) {
@@ -135,8 +139,8 @@ public class TwoWheelConstants {
      * This sets the default values for the this.
      */
     public void defaults() {
-        forwardTicksToInches = .001989436789;
-        strafeTicksToInches = .001989436789;
+        forwardTicksToDistance = .001989436789;
+        strafeTicksToDistance = .001989436789;
         forwardPodY = 1;
         strafePodX = -2.5;
         IMU_HardwareMapName = "imu";

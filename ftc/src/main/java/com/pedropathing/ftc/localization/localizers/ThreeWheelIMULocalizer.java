@@ -44,8 +44,8 @@ public class ThreeWheelIMULocalizer implements Localizer {
     private double previousIMUOrientation;
     private double deltaRadians;
     private double totalHeading;
-    public static double FORWARD_TICKS_TO_INCHES;
-    public static double STRAFE_TICKS_TO_INCHES;
+    public static double FORWARD_TICKS_TO_DISTANCE;
+    public static double STRAFE_TICKS_TO_DISTANCE;
     public static double TURN_TICKS_TO_RADIANS;
 
     public static boolean useIMU = true;
@@ -68,9 +68,9 @@ public class ThreeWheelIMULocalizer implements Localizer {
      * @param setStartPose the Pose to start from
      */
     public ThreeWheelIMULocalizer(HardwareMap map, ThreeWheelIMUConstants constants, Pose setStartPose) {
-        FORWARD_TICKS_TO_INCHES = constants.forwardTicksToInches;
-        STRAFE_TICKS_TO_INCHES = constants.strafeTicksToInches;
-        TURN_TICKS_TO_RADIANS = constants.turnTicksToInches;
+        FORWARD_TICKS_TO_DISTANCE = constants.forwardTicksToDistance;
+        STRAFE_TICKS_TO_DISTANCE = constants.strafeTicksToDistance;
+        TURN_TICKS_TO_RADIANS = constants.turnTicksToRadians;
         imu = constants.imu;
 
         leftEncoderPose = new Pose(0, constants.leftPodY, 0);
@@ -233,9 +233,9 @@ public class ThreeWheelIMULocalizer implements Localizer {
     public Matrix getRobotDeltas() {
         Matrix returnMatrix = new Matrix(3,1);
         // x/forward movement
-        returnMatrix.set(0,0, FORWARD_TICKS_TO_INCHES * (rightEncoder.getDeltaPosition() * leftEncoderPose.getY() - leftEncoder.getDeltaPosition() * rightEncoderPose.getY()) / (leftEncoderPose.getY() - rightEncoderPose.getY()));
+        returnMatrix.set(0,0, FORWARD_TICKS_TO_DISTANCE * (rightEncoder.getDeltaPosition() * leftEncoderPose.getY() - leftEncoder.getDeltaPosition() * rightEncoderPose.getY()) / (leftEncoderPose.getY() - rightEncoderPose.getY()));
         //y/strafe movement
-        returnMatrix.set(1,0, STRAFE_TICKS_TO_INCHES * (strafeEncoder.getDeltaPosition() - strafeEncoderPose.getX() * ((rightEncoder.getDeltaPosition() - leftEncoder.getDeltaPosition()) / (leftEncoderPose.getY() - rightEncoderPose.getY()))));
+        returnMatrix.set(1,0, STRAFE_TICKS_TO_DISTANCE * (strafeEncoder.getDeltaPosition() - strafeEncoderPose.getX() * ((rightEncoder.getDeltaPosition() - leftEncoder.getDeltaPosition()) / (leftEncoderPose.getY() - rightEncoderPose.getY()))));
         // theta/turning
         if (MathFunctions.getSmallestAngleDifference(0, deltaRadians) > 0.00005 && useIMU) {
             returnMatrix.set(2, 0, deltaRadians);
@@ -258,24 +258,24 @@ public class ThreeWheelIMULocalizer implements Localizer {
 
     /**
      * This returns the multiplier applied to forward movement measurement to convert from encoder
-     * ticks to inches. This is found empirically through a tuner.
+     * ticks to the follower length unit. This is found empirically through a tuner.
      *
-     * @return returns the forward ticks to inches multiplier
+     * @return returns the forward ticks to distance multiplier
      */
     @Override
     public double getForwardMultiplier() {
-        return FORWARD_TICKS_TO_INCHES;
+        return FORWARD_TICKS_TO_DISTANCE;
     }
 
     /**
      * This returns the multiplier applied to lateral/strafe movement measurement to convert from
-     * encoder ticks to inches. This is found empirically through a tuner.
+     * encoder ticks to the follower length unit. This is found empirically through a tuner.
      *
-     * @return returns the lateral/strafe ticks to inches multiplier
+     * @return returns the lateral/strafe ticks to distance multiplier
      */
     @Override
     public double getLateralMultiplier() {
-        return STRAFE_TICKS_TO_INCHES;
+        return STRAFE_TICKS_TO_DISTANCE;
     }
 
     /**

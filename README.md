@@ -34,7 +34,7 @@ Pose start = new Pose(0, 0, 0);
 Pose end = new Pose(60.96, 0, 0); // one FTC tile, in centimeters
 ```
 
-`FollowerBuilder` copies the follower unit onto Pinpoint `distanceUnit` and OTOS `linearUnit`. Encoder tick multipliers (`forwardTicksToInches` and the `forwardTicksToDistance` aliases) are “ticks to the selected unit,” not always inches.
+`FollowerBuilder` copies the follower unit onto Pinpoint `distanceUnit` and OTOS `linearUnit`. Encoder tick fields are `forwardTicksToDistance` / `strafeTicksToDistance` (ticks to the selected length unit). Turning uses `turnTicksToRadians`. Upstream `*TicksToInches` setters remain as deprecated wrappers.
 
 Mass stays kilograms. Heading stays radians.
 

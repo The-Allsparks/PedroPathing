@@ -33,8 +33,8 @@ public class ThreeWheelLocalizer implements Localizer {
     private final Pose rightEncoderPose;
     private final Pose strafeEncoderPose;
     private double totalHeading;
-    public static double FORWARD_TICKS_TO_INCHES;
-    public static double STRAFE_TICKS_TO_INCHES;
+    public static double FORWARD_TICKS_TO_DISTANCE;
+    public static double STRAFE_TICKS_TO_DISTANCE;
     public static double TURN_TICKS_TO_RADIANS;
 
     /**
@@ -55,9 +55,9 @@ public class ThreeWheelLocalizer implements Localizer {
      * @param setStartPose the Pose to start from
      */
     public ThreeWheelLocalizer(HardwareMap map, ThreeWheelConstants constants, Pose setStartPose) {
-        FORWARD_TICKS_TO_INCHES = constants.forwardTicksToInches;
-        STRAFE_TICKS_TO_INCHES = constants.strafeTicksToInches;
-        TURN_TICKS_TO_RADIANS = constants.turnTicksToInches;
+        FORWARD_TICKS_TO_DISTANCE = constants.forwardTicksToDistance;
+        STRAFE_TICKS_TO_DISTANCE = constants.strafeTicksToDistance;
+        TURN_TICKS_TO_RADIANS = constants.turnTicksToRadians;
 
         leftEncoderPose = new Pose(0, constants.leftPodY, 0);
         rightEncoderPose = new Pose(0, constants.rightPodY, 0);
@@ -213,9 +213,9 @@ public class ThreeWheelLocalizer implements Localizer {
     public Matrix getRobotDeltas() {
         Matrix returnMatrix = new Matrix(3,1);
         // x/forward movement
-        returnMatrix.set(0,0, FORWARD_TICKS_TO_INCHES * (rightEncoder.getDeltaPosition() * leftEncoderPose.getY() - leftEncoder.getDeltaPosition() * rightEncoderPose.getY()) / (leftEncoderPose.getY() - rightEncoderPose.getY()));
+        returnMatrix.set(0,0, FORWARD_TICKS_TO_DISTANCE * (rightEncoder.getDeltaPosition() * leftEncoderPose.getY() - leftEncoder.getDeltaPosition() * rightEncoderPose.getY()) / (leftEncoderPose.getY() - rightEncoderPose.getY()));
         //y/strafe movement
-        returnMatrix.set(1,0, STRAFE_TICKS_TO_INCHES * (strafeEncoder.getDeltaPosition() - strafeEncoderPose.getX() * ((rightEncoder.getDeltaPosition() - leftEncoder.getDeltaPosition()) / (leftEncoderPose.getY() - rightEncoderPose.getY()))));
+        returnMatrix.set(1,0, STRAFE_TICKS_TO_DISTANCE * (strafeEncoder.getDeltaPosition() - strafeEncoderPose.getX() * ((rightEncoder.getDeltaPosition() - leftEncoder.getDeltaPosition()) / (leftEncoderPose.getY() - rightEncoderPose.getY()))));
         // theta/turning
         returnMatrix.set(2,0, TURN_TICKS_TO_RADIANS * (rightEncoder.getDeltaPosition() - leftEncoder.getDeltaPosition()) / (leftEncoderPose.getY() - rightEncoderPose.getY()));
         return returnMatrix;
@@ -234,24 +234,24 @@ public class ThreeWheelLocalizer implements Localizer {
 
     /**
      * This returns the multiplier applied to forward movement measurement to convert from encoder
-     * ticks to inches. This is found empirically through a tuner.
+     * ticks to the follower length unit. This is found empirically through a tuner.
      *
-     * @return returns the forward ticks to inches multiplier
+     * @return returns the forward ticks to distance multiplier
      */
     @Override
     public double getForwardMultiplier() {
-        return FORWARD_TICKS_TO_INCHES;
+        return FORWARD_TICKS_TO_DISTANCE;
     }
 
     /**
      * This returns the multiplier applied to lateral/strafe movement measurement to convert from
-     * encoder ticks to inches. This is found empirically through a tuner.
+     * encoder ticks to the follower length unit. This is found empirically through a tuner.
      *
-     * @return returns the lateral/strafe ticks to inches multiplier
+     * @return returns the lateral/strafe ticks to distance multiplier
      */
     @Override
     public double getLateralMultiplier() {
-        return STRAFE_TICKS_TO_INCHES;
+        return STRAFE_TICKS_TO_DISTANCE;
     }
 
     /**

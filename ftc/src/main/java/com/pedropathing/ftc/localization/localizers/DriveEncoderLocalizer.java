@@ -31,8 +31,8 @@ public class DriveEncoderLocalizer implements Localizer {
     private final Encoder leftRear;
     private final Encoder rightRear;
     private double totalHeading;
-    public static double FORWARD_TICKS_TO_INCHES;
-    public static double STRAFE_TICKS_TO_INCHES;
+    public static double FORWARD_TICKS_TO_DISTANCE;
+    public static double STRAFE_TICKS_TO_DISTANCE;
     public static double TURN_TICKS_TO_RADIANS;
     public static double ROBOT_WIDTH;
     public static double ROBOT_LENGTH;
@@ -55,9 +55,9 @@ public class DriveEncoderLocalizer implements Localizer {
      * @param setStartPose the Pose to start from
      */
     public DriveEncoderLocalizer(HardwareMap map, DriveEncoderConstants constants, Pose setStartPose) {
-        FORWARD_TICKS_TO_INCHES = constants.forwardTicksToInches;
-        STRAFE_TICKS_TO_INCHES = constants.strafeTicksToInches;
-        TURN_TICKS_TO_RADIANS = constants.turnTicksToInches;
+        FORWARD_TICKS_TO_DISTANCE = constants.forwardTicksToDistance;
+        STRAFE_TICKS_TO_DISTANCE = constants.strafeTicksToDistance;
+        TURN_TICKS_TO_RADIANS = constants.turnTicksToRadians;
 
         ROBOT_WIDTH = constants.robot_Width;
         ROBOT_LENGTH = constants.robot_Length;
@@ -213,9 +213,9 @@ public class DriveEncoderLocalizer implements Localizer {
     public Matrix getRobotDeltas() {
         Matrix returnMatrix = new Matrix(3,1);
         // x/forward movement
-        returnMatrix.set(0,0, FORWARD_TICKS_TO_INCHES * (leftFront.getDeltaPosition() + rightFront.getDeltaPosition() + leftRear.getDeltaPosition() + rightRear.getDeltaPosition()));
+        returnMatrix.set(0,0, FORWARD_TICKS_TO_DISTANCE * (leftFront.getDeltaPosition() + rightFront.getDeltaPosition() + leftRear.getDeltaPosition() + rightRear.getDeltaPosition()));
         //y/strafe movement
-        returnMatrix.set(1,0, STRAFE_TICKS_TO_INCHES * (-leftFront.getDeltaPosition() + rightFront.getDeltaPosition() + leftRear.getDeltaPosition() - rightRear.getDeltaPosition()));
+        returnMatrix.set(1,0, STRAFE_TICKS_TO_DISTANCE * (-leftFront.getDeltaPosition() + rightFront.getDeltaPosition() + leftRear.getDeltaPosition() - rightRear.getDeltaPosition()));
         // theta/turning
         returnMatrix.set(2,0, TURN_TICKS_TO_RADIANS * ((-leftFront.getDeltaPosition() + rightFront.getDeltaPosition() - leftRear.getDeltaPosition() + rightRear.getDeltaPosition()) / (ROBOT_WIDTH + ROBOT_LENGTH)));
         return returnMatrix;
@@ -234,24 +234,24 @@ public class DriveEncoderLocalizer implements Localizer {
 
     /**
      * This returns the multiplier applied to forward movement measurement to convert from encoder
-     * ticks to inches. This is found empirically through a tuner.
+     * ticks to the follower length unit. This is found empirically through a tuner.
      *
-     * @return returns the forward ticks to inches multiplier
+     * @return returns the forward ticks to distance multiplier
      */
     @Override
     public double getForwardMultiplier() {
-        return FORWARD_TICKS_TO_INCHES;
+        return FORWARD_TICKS_TO_DISTANCE;
     }
 
     /**
      * This returns the multiplier applied to lateral/strafe movement measurement to convert from
-     * encoder ticks to inches. This is found empirically through a tuner.
+     * encoder ticks to the follower length unit. This is found empirically through a tuner.
      *
-     * @return returns the lateral/strafe ticks to inches multiplier
+     * @return returns the lateral/strafe ticks to distance multiplier
      */
     @Override
     public double getLateralMultiplier() {
-        return STRAFE_TICKS_TO_INCHES;
+        return STRAFE_TICKS_TO_DISTANCE;
     }
 
     /**

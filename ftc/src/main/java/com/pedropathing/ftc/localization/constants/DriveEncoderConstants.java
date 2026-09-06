@@ -4,12 +4,18 @@ import com.pedropathing.ftc.localization.Encoder;
 
 public class DriveEncoderConstants {
     /**
-     * Ticks to follower length unit per encoder tick (inches unless
-     * {@code FollowerConstants.lengthUnit} is changed).
+     * Encoder ticks to follower {@link com.pedropathing.math.LengthUnit} for forward travel.
      */
-    public double forwardTicksToInches = 1;
-    public double strafeTicksToInches = 1;
-    public double turnTicksToInches = 1;
+    public double forwardTicksToDistance = 1;
+    /**
+     * Encoder ticks to follower length unit for strafe travel.
+     */
+    public double strafeTicksToDistance = 1;
+    /**
+     * Encoder ticks to radians for turning. The upstream name said inches; this
+     * value was always a heading scale.
+     */
+    public double turnTicksToRadians = 1;
 
     public double robot_Width = 1;
     public double robot_Length = 1;
@@ -24,31 +30,43 @@ public class DriveEncoderConstants {
     public String rightFrontMotorName = "rightFront";
     public String rightRearMotorName = "rightRear";
 
-    public DriveEncoderConstants forwardTicksToInches(double forwardTicksToInches) {
-        this.forwardTicksToInches = forwardTicksToInches;
-        return this;
-    }
-
-    public DriveEncoderConstants strafeTicksToInches(double strafeTicksToInches) {
-        this.strafeTicksToInches = strafeTicksToInches;
-        return this;
-    }
-
-    public DriveEncoderConstants turnTicksToInches(double turnTicksToInches) {
-        this.turnTicksToInches = turnTicksToInches;
-        return this;
-    }
-
     public DriveEncoderConstants forwardTicksToDistance(double forwardTicksToDistance) {
-        return forwardTicksToInches(forwardTicksToDistance);
+        this.forwardTicksToDistance = forwardTicksToDistance;
+        return this;
     }
 
     public DriveEncoderConstants strafeTicksToDistance(double strafeTicksToDistance) {
-        return strafeTicksToInches(strafeTicksToDistance);
+        this.strafeTicksToDistance = strafeTicksToDistance;
+        return this;
     }
 
+    public DriveEncoderConstants turnTicksToRadians(double turnTicksToRadians) {
+        this.turnTicksToRadians = turnTicksToRadians;
+        return this;
+    }
+
+    /** @deprecated use {@link #forwardTicksToDistance(double)} */
+    @Deprecated
+    public DriveEncoderConstants forwardTicksToInches(double forwardTicksToInches) {
+        return forwardTicksToDistance(forwardTicksToInches);
+    }
+
+    /** @deprecated use {@link #strafeTicksToDistance(double)} */
+    @Deprecated
+    public DriveEncoderConstants strafeTicksToInches(double strafeTicksToInches) {
+        return strafeTicksToDistance(strafeTicksToInches);
+    }
+
+    /** @deprecated use {@link #turnTicksToRadians(double)} */
+    @Deprecated
+    public DriveEncoderConstants turnTicksToInches(double turnTicksToInches) {
+        return turnTicksToRadians(turnTicksToInches);
+    }
+
+    /** @deprecated use {@link #turnTicksToRadians(double)} */
+    @Deprecated
     public DriveEncoderConstants turnTicksToDistance(double turnTicksToDistance) {
-        return turnTicksToInches(turnTicksToDistance);
+        return turnTicksToRadians(turnTicksToDistance);
     }
 
     public DriveEncoderConstants robotWidth(double robot_Width) {
@@ -102,9 +120,9 @@ public class DriveEncoderConstants {
     }
 
     public void defaults() {
-        forwardTicksToInches = 1;
-        strafeTicksToInches = 1;
-        turnTicksToInches = 1;
+        forwardTicksToDistance = 1;
+        strafeTicksToDistance = 1;
+        turnTicksToRadians = 1;
 
         robot_Width = 1;
         robot_Length = 1;

@@ -16,15 +16,15 @@ public class ThreeWheelIMUConstants {
 
     /** The number of follower length units per tick of the encoder for forward movement
      * Default Value: .001989436789 */
-    public double forwardTicksToInches = .001989436789;
+    public double forwardTicksToDistance = .001989436789;
 
     /** The number of follower length units per tick of the encoder for lateral movement (strafing)
      * Default Value: .001989436789 */
-    public double strafeTicksToInches = .001989436789;
+    public double strafeTicksToDistance = .001989436789;
 
-    /** The number of follower length units per tick of the encoder for turning
+    /** Encoder ticks to radians for turning.
      * Default Value: .001989436789 */
-    public double turnTicksToInches = .001989436789;
+    public double turnTicksToRadians = .001989436789;
 
     /** The Y Offset of the Left Encoder (Deadwheel) from the center of the robot
      * Default Value: 1 */
@@ -82,31 +82,43 @@ public class ThreeWheelIMUConstants {
         defaults();
     }
 
-    public ThreeWheelIMUConstants forwardTicksToInches(double forwardTicksToInches) {
-        this.forwardTicksToInches = forwardTicksToInches;
-        return this;
-    }
-
-    public ThreeWheelIMUConstants strafeTicksToInches(double strafeTicksToInches) {
-        this.strafeTicksToInches = strafeTicksToInches;
-        return this;
-    }
-
-    public ThreeWheelIMUConstants turnTicksToInches(double turnTicksToInches) {
-        this.turnTicksToInches = turnTicksToInches;
-        return this;
-    }
-
     public ThreeWheelIMUConstants forwardTicksToDistance(double forwardTicksToDistance) {
-        return forwardTicksToInches(forwardTicksToDistance);
+        this.forwardTicksToDistance = forwardTicksToDistance;
+        return this;
     }
 
     public ThreeWheelIMUConstants strafeTicksToDistance(double strafeTicksToDistance) {
-        return strafeTicksToInches(strafeTicksToDistance);
+        this.strafeTicksToDistance = strafeTicksToDistance;
+        return this;
     }
 
+    public ThreeWheelIMUConstants turnTicksToRadians(double turnTicksToRadians) {
+        this.turnTicksToRadians = turnTicksToRadians;
+        return this;
+    }
+
+    /** @deprecated use {@link #forwardTicksToDistance(double)} */
+    @Deprecated
+    public ThreeWheelIMUConstants forwardTicksToInches(double forwardTicksToInches) {
+        return forwardTicksToDistance(forwardTicksToInches);
+    }
+
+    /** @deprecated use {@link #strafeTicksToDistance(double)} */
+    @Deprecated
+    public ThreeWheelIMUConstants strafeTicksToInches(double strafeTicksToInches) {
+        return strafeTicksToDistance(strafeTicksToInches);
+    }
+
+    /** @deprecated use {@link #turnTicksToRadians(double)} */
+    @Deprecated
+    public ThreeWheelIMUConstants turnTicksToInches(double turnTicksToInches) {
+        return turnTicksToRadians(turnTicksToInches);
+    }
+
+    /** @deprecated use {@link #turnTicksToRadians(double)} */
+    @Deprecated
     public ThreeWheelIMUConstants turnTicksToDistance(double turnTicksToDistance) {
-        return turnTicksToInches(turnTicksToDistance);
+        return turnTicksToRadians(turnTicksToDistance);
     }
 
     public ThreeWheelIMUConstants leftPodY(double leftPodY) {
@@ -170,9 +182,9 @@ public class ThreeWheelIMUConstants {
     }
 
     public void defaults() {
-        forwardTicksToInches = .001989436789;
-        strafeTicksToInches = .001989436789;
-        turnTicksToInches = .001989436789;
+        forwardTicksToDistance = .001989436789;
+        strafeTicksToDistance = .001989436789;
+        turnTicksToRadians = .001989436789;
         leftPodY = 1;
         rightPodY = -1;
         strafePodX = -2.5;

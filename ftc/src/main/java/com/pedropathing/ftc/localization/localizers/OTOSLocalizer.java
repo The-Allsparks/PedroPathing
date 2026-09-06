@@ -159,10 +159,10 @@ public class OTOSLocalizer implements Localizer {
 
     /**
      * This returns the multiplier applied to forward movement measurement to convert from OTOS
-     * ticks to inches. For the OTOS, this value is the same as the lateral multiplier.
+     * ticks to the follower length unit. For the OTOS, this value is the same as the lateral multiplier.
      * This is found empirically through a tuner.
      *
-     * @return returns the forward ticks to inches multiplier
+     * @return returns the forward ticks to distance multiplier
      */
     @Override
     public double getForwardMultiplier() {
@@ -171,10 +171,10 @@ public class OTOSLocalizer implements Localizer {
 
     /**
      * This returns the multiplier applied to lateral/strafe movement measurement to convert from
-     * OTOS ticks to inches. For the OTOS, this value is the same as the forward multiplier.
+     * OTOS ticks to the follower length unit. For the OTOS, this value is the same as the forward multiplier.
      * This is found empirically through a tuner.
      *
-     * @return returns the lateral/strafe ticks to inches multiplier
+     * @return returns the lateral/strafe ticks to distance multiplier
      */
     @Override
     public double getLateralMultiplier() {
