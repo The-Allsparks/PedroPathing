@@ -9,6 +9,7 @@ import com.pedropathing.drivetrain.Drivetrain;
 import com.pedropathing.follower.Follower;
 import com.pedropathing.follower.FollowerConstants;
 import com.pedropathing.ftc.drivetrains.MecanumConstants;
+import com.pedropathing.ftc.localization.constants.DriveEncoderConstants;
 import com.pedropathing.geometry.Pose;
 import com.pedropathing.localization.Localizer;
 import com.pedropathing.math.AngularUnit;
@@ -55,13 +56,19 @@ public class FollowerBuilderUnitsTest {
         assertEquals(-41.278, constants.forwardZeroPowerAcceleration, 1e-6);
         assertNotSame(constants, follower.getConstants());
         assertEquals(10.659420695, follower.getConstants().mass, 1e-9);
+        assertEquals(23.5, follower.getMass(), EPS);
         assertEquals(-36.0, follower.getConstants().forwardZeroPowerAcceleration, EPS);
+        assertEquals(-3.0, follower.getForwardZeroPowerAcceleration(), EPS);
         assertEquals(6.0, follower.getConstraints().getVelocityConstraint(), EPS);
         assertEquals(0.6, follower.getConstraints().getTranslationalConstraint(), EPS);
         Pose start = follower.pose(2, 4, 90);
-        assertEquals(24.0, start.getX(), EPS);
-        assertEquals(48.0, start.getY(), EPS);
-        assertEquals(Math.PI / 2, start.getHeading(), EPS);
+        assertEquals(2.0, start.getX(), EPS);
+        assertEquals(4.0, start.getY(), EPS);
+        assertEquals(90.0, start.getHeading(), EPS);
+        assertEquals(2.0, follower.getPose().getX(), EPS);
+        assertEquals(24.0, follower.getInternalPose().getX(), EPS);
+        assertEquals(48.0, follower.getInternalPose().getY(), EPS);
+        assertEquals(Math.PI / 2, follower.getInternalPose().getHeading(), EPS);
         assertEquals(0.1, PathConstraints.defaultConstraints.getVelocityConstraint(), EPS);
     }
 
@@ -112,6 +119,46 @@ public class FollowerBuilderUnitsTest {
     }
 
     @Test
+    public void constructorPhysicalValuesUseConfiguredUnits() {
+        FollowerConstants constants = new FollowerConstants().mass(23.5);
+        Follower follower = new FollowerBuilder(constants, null)
+                .setUnits(LengthUnit.FEET, MassUnit.POUNDS, AngularUnit.DEGREES)
+                .setLocalizer(new FakeLocalizer())
+                .setDrivetrain(new FakeDrivetrain())
+                .build();
+        assertEquals(23.5, constants.mass, EPS);
+        assertEquals(10.659420695, follower.getConstants().mass, 1e-9);
+        assertEquals(23.5, follower.getMass(), EPS);
+        assertEquals(-41.278, follower.getConstants().forwardZeroPowerAcceleration, 1e-6);
+    }
+
+    @Test
+    public void drivetrainAndEncoderConstantsConvertNonDefaultPhysicalValues() {
+        PedroUnits feet = new PedroUnits(LengthUnit.FEET, MassUnit.KILOGRAMS, AngularUnit.DEGREES);
+        MecanumConstants mecanum = new MecanumConstants().xVelocity(2.0);
+        MecanumConstants convertedMecanum = ConfiguredHardwareUnits.toInternal(mecanum, feet);
+        assertEquals(24.0, convertedMecanum.xVelocity, EPS);
+        assertEquals(2.0, mecanum.xVelocity, EPS);
+        MecanumConstants defaultMecanum = new MecanumConstants();
+        assertSame(defaultMecanum, ConfiguredHardwareUnits.toInternal(defaultMecanum, feet));
+
+        DriveEncoderConstants encoders = new DriveEncoderConstants()
+                .robotWidth(2)
+                .robotLength(1.5)
+                .forwardTicksToInches(0.01)
+                .turnTicksToInches(90);
+        DriveEncoderConstants convertedEncoders = ConfiguredHardwareUnits.toInternal(encoders, feet);
+        assertEquals(24.0, convertedEncoders.robot_Width, EPS);
+        assertEquals(18.0, convertedEncoders.robot_Length, EPS);
+        assertEquals(0.12, convertedEncoders.forwardTicksToInches, EPS);
+        assertEquals(Math.PI / 2, convertedEncoders.turnTicksToInches, EPS);
+        assertEquals(2.0, encoders.robot_Width, EPS);
+
+        DriveEncoderConstants defaults = new DriveEncoderConstants();
+        assertSame(defaults, ConfiguredHardwareUnits.toInternal(defaults, feet));
+    }
+
+    @Test
     public void buildingTwiceDoesNotRescaleConstants() {
         FollowerConstants constants = new FollowerConstants();
         FollowerBuilder builder = new FollowerBuilder(constants, null)
@@ -123,6 +170,7 @@ public class FollowerBuilderUnitsTest {
         Follower second = builder.build();
         assertEquals(first.getConstants().mass, second.getConstants().mass, EPS);
         assertEquals(10.659420695, first.getConstants().mass, 1e-9);
+        assertEquals(23.5, first.getMass(), EPS);
         assertEquals(0.1, first.getConstants().coefficientsTranslationalPIDF.P, EPS);
         assertEquals(0.1, second.getConstants().coefficientsTranslationalPIDF.P, EPS);
     }

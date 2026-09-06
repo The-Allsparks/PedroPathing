@@ -77,6 +77,7 @@ public class PoseTracker {
     public void setStartingPose(Pose set) {
         startingPose = set;
         previousPose = startingPose;
+        currentPose = startingPose.copy();
         previousPoseTime = System.nanoTime();
         currentPoseTime = System.nanoTime();
         localizer.setStartPose(set);
@@ -207,6 +208,7 @@ public class PoseTracker {
     public void setPose(Pose set) {
         resetOffset();
         localizer.setPose(set);
+        currentPose = set.copy();
     }
 
     /**

@@ -8,8 +8,9 @@ import com.pedropathing.geometry.Pose;
  * Immutable display/interface pose whose x/y/heading are expressed in a {@link PedroUnits}
  * configuration.
  *
- * <p>This is not a Pedro {@link Pose}. Do not pass it into follower math, path construction, or
- * localizers. Convert with {@link #toInternalPose()} first.
+ * <p>This is not a Pedro {@link Pose}. Use it when you want unit symbols on telemetry. Ordinary
+ * {@link Pose} values from {@code follower.getPose()} are already in the configured units.
+ * Convert with {@link #toInternalPose()} only if you need canonical inches and radians.
  *
  * @author The Allsparks - 36117
  */

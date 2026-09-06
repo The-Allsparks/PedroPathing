@@ -4,6 +4,7 @@ import com.pedropathing.follower.Follower;
 import com.pedropathing.geometry.BezierCurve;
 import com.pedropathing.geometry.Curve;
 import com.pedropathing.geometry.Pose;
+import com.pedropathing.math.PedroUnits;
 import com.pedropathing.paths.callbacks.ParametricCallback;
 import com.pedropathing.paths.callbacks.PathCallback;
 import com.pedropathing.paths.callbacks.PoseCallback;
@@ -66,19 +67,23 @@ public class PathBuilder {
      * @return This returns itself with the updated data.
      */
     public PathBuilder addPath(Path path) {
-        path.setConstraints(constraints);
-        this.paths.add(path);
+        Path converted = toInternalPath(path);
+        converted.setConstraints(constraints);
+        this.paths.add(converted);
         return this;
     }
 
     /**
      * This adds a default Path defined by a specified BezierCurve to the PathBuilder.
      *
-     * @param curve This curve is turned into a Path and added.
+     * @param curve This curve is turned into a Path and added. Control points are in the
+     *         follower's configured units.
      * @return This returns itself with the updated data.
      */
     public PathBuilder addPath(Curve curve) {
-        return addPath(new Path(curve, constraints));
+        Path path = new Path(toInternalCurve(curve), constraints);
+        this.paths.add(path);
+        return this;
     }
 
     /**
@@ -88,8 +93,7 @@ public class PathBuilder {
      */
     public PathBuilder addPaths(Path... paths){
         for (Path path: paths) {
-            path.setConstraints(constraints);
-            this.paths.add(path);
+            addPath(path);
         }
         return this;
     }
@@ -101,7 +105,7 @@ public class PathBuilder {
      */
     public PathBuilder addPaths(Curve... curves){
         for (Curve curve: curves) {
-            this.paths.add(new Path(curve, constraints));
+            addPath(curve);
         }
         return this;
     }
@@ -157,11 +161,11 @@ public class PathBuilder {
         Pose startPoint;
 
         if (!this.paths.isEmpty()){
-            prevPoint = this.paths.get(paths.size() - 1).getFirstControlPoint();
-            startPoint = this.paths.get(paths.size() - 1).getLastControlPoint();
+            prevPoint = toUserPose(this.paths.get(paths.size() - 1).getFirstControlPoint());
+            startPoint = toUserPose(this.paths.get(paths.size() - 1).getLastControlPoint());
         } else {
             // fallback if the last path doesn't exist
-            startPoint = this.follower.getPoseTracker().getPreviousPose().copy();
+            startPoint = this.follower.getPose().copy();
             // the first element of points must exist
             prevPoint = startPoint.minus(points[0].minus(startPoint));
         }
@@ -197,7 +201,7 @@ public class PathBuilder {
      * @return This returns itself with the updated data.
      */
     public PathBuilder setLinearHeadingInterpolation(double startHeading, double endHeading) {
-        this.paths.get(paths.size() - 1).setLinearHeadingInterpolation(startHeading, endHeading);
+        this.paths.get(paths.size() - 1).setLinearHeadingInterpolation(toInternalHeading(startHeading), toInternalHeading(endHeading));
         return this;
     }
 
@@ -210,7 +214,7 @@ public class PathBuilder {
      * @return This returns itself with the updated data.
      */
     public PathBuilder setGlobalLinearHeadingInterpolation(double startHeading, double endHeading) {
-        headingInterpolator = HeadingInterpolator.linear(startHeading, endHeading);
+        headingInterpolator = HeadingInterpolator.linear(toInternalHeading(startHeading), toInternalHeading(endHeading));
         return this;
     }
 
@@ -225,7 +229,7 @@ public class PathBuilder {
      * @return This returns itself with the updated data.
      */
     public PathBuilder setLinearHeadingInterpolation(double startHeading, double endHeading, double endTime) {
-        this.paths.get(paths.size() - 1).setLinearHeadingInterpolation(startHeading, endHeading, endTime);
+        this.paths.get(paths.size() - 1).setLinearHeadingInterpolation(toInternalHeading(startHeading), toInternalHeading(endHeading), endTime);
         return this;
     }
 
@@ -240,7 +244,7 @@ public class PathBuilder {
      * @return This returns itself with the updated data.
      */
     public PathBuilder setGlobalLinearHeadingInterpolation(double startHeading, double endHeading, double endTime) {
-        headingInterpolator = HeadingInterpolator.linear(startHeading, endHeading, endTime);
+        headingInterpolator = HeadingInterpolator.linear(toInternalHeading(startHeading), toInternalHeading(endHeading), endTime);
         return this;
     }
 
@@ -257,9 +261,9 @@ public class PathBuilder {
      */
     public PathBuilder setLinearHeadingInterpolation(double startHeading, double endHeading, double endTime, double startTime) {
         HeadingInterpolator interpolator = HeadingInterpolator.piecewise(
-                new HeadingInterpolator.PiecewiseNode(0, startTime, HeadingInterpolator.constant(startHeading)),
-                HeadingInterpolator.PiecewiseNode.linear(startTime, endTime, startHeading, endHeading),
-                new HeadingInterpolator.PiecewiseNode(endTime, 1, HeadingInterpolator.constant(endHeading))
+                new HeadingInterpolator.PiecewiseNode(0, startTime, HeadingInterpolator.constant(toInternalHeading(startHeading))),
+                HeadingInterpolator.PiecewiseNode.linear(startTime, endTime, toInternalHeading(startHeading), toInternalHeading(endHeading)),
+                new HeadingInterpolator.PiecewiseNode(endTime, 1, HeadingInterpolator.constant(toInternalHeading(endHeading)))
         );
 
         this.paths.get(paths.size() - 1).setHeadingInterpolation(interpolator);
@@ -279,9 +283,9 @@ public class PathBuilder {
      */
     public PathBuilder setGlobalLinearHeadingInterpolation(double startHeading, double endHeading, double endTime, double startTime) {
         headingInterpolator = HeadingInterpolator.piecewise(
-                new HeadingInterpolator.PiecewiseNode(0, startTime, HeadingInterpolator.constant(startHeading)),
-                HeadingInterpolator.PiecewiseNode.linear(startTime, endTime, startHeading, endHeading),
-                new HeadingInterpolator.PiecewiseNode(endTime, 1, HeadingInterpolator.constant(endHeading))
+                new HeadingInterpolator.PiecewiseNode(0, startTime, HeadingInterpolator.constant(toInternalHeading(startHeading))),
+                HeadingInterpolator.PiecewiseNode.linear(startTime, endTime, toInternalHeading(startHeading), toInternalHeading(endHeading)),
+                new HeadingInterpolator.PiecewiseNode(endTime, 1, HeadingInterpolator.constant(toInternalHeading(endHeading)))
         );
         return this;
     }
@@ -293,7 +297,7 @@ public class PathBuilder {
      * @return This returns itself with the updated data.
      */
     public PathBuilder setConstantHeadingInterpolation(double setHeading) {
-        this.paths.get(paths.size() - 1).setConstantHeadingInterpolation(setHeading);
+        this.paths.get(paths.size() - 1).setConstantHeadingInterpolation(toInternalHeading(setHeading));
         return this;
     }
 
@@ -304,7 +308,7 @@ public class PathBuilder {
      * @return This returns itself with the updated data.
      */
     public PathBuilder setGlobalConstantHeadingInterpolation(double setHeading) {
-        headingInterpolator = HeadingInterpolator.constant(setHeading);
+        headingInterpolator = HeadingInterpolator.constant(toInternalHeading(setHeading));
         return this;
     }
 
@@ -393,7 +397,7 @@ public class PathBuilder {
      * @return This returns itself with the updated data.
      */
     public PathBuilder setVelocityConstraint(double set) {
-        this.paths.get(paths.size() - 1).setVelocityConstraint(set);
+        this.paths.get(paths.size() - 1).setVelocityConstraint(units().velocityToInternal(set));
         return this;
     }
 
@@ -404,7 +408,7 @@ public class PathBuilder {
      * @return This returns itself with the updated data.
      */
     public PathBuilder setTranslationalConstraint(double set) {
-        this.paths.get(paths.size() - 1).setTranslationalConstraint(set);
+        this.paths.get(paths.size() - 1).setTranslationalConstraint(units().lengthToInternal(set));
         return this;
     }
 
@@ -415,7 +419,7 @@ public class PathBuilder {
      * @return This returns itself with the updated data.
      */
     public PathBuilder setHeadingConstraint(double set) {
-        this.paths.get(paths.size() - 1).setHeadingConstraint(set);
+        this.paths.get(paths.size() - 1).setHeadingConstraint(toInternalHeading(set));
         return this;
     }
 
@@ -477,7 +481,7 @@ public class PathBuilder {
      * @return This returns itself with the updated data.
      */
     public PathBuilder addPoseCallback(Pose targetPoint, Runnable runnable, double initialTValueGuess) {
-        this.callbacks.add(new FiniteRunAction(new PoseCallback(follower, paths.size() - 1, targetPoint, runnable, initialTValueGuess, this.paths.get(paths.size() - 1).getCurve())));
+        this.callbacks.add(new FiniteRunAction(new PoseCallback(follower, paths.size() - 1, toInternalPose(targetPoint), runnable, initialTValueGuess, this.paths.get(paths.size() - 1).getCurve())));
         return this;
     }
 
@@ -606,6 +610,15 @@ public class PathBuilder {
     }
 
     /**
+     * Face a point expressed in the follower's configured length units.
+     */
+    public PathBuilder setFacingPointHeadingInterpolation(double x, double y) {
+        this.paths.get(paths.size() - 1).setHeadingInterpolation(
+                HeadingInterpolator.facingPoint(units().lengthToInternal(x), units().lengthToInternal(y)));
+        return this;
+    }
+
+    /**
      * This sets the constraints to be the default PathBuilder.
      *
      * @param constraints The constraints to set.
@@ -644,5 +657,29 @@ public class PathBuilder {
 
     private void setBrakingStartForAll(double start) {
         for (Path path : paths) path.setBrakingStart(start);
+    }
+
+    private PedroUnits units() {
+        return follower.getUnits();
+    }
+
+    private double toInternalHeading(double heading) {
+        return units().angleToInternal(heading);
+    }
+
+    private Pose toInternalPose(Pose pose) {
+        return units().toInternalPose(pose);
+    }
+
+    private Pose toUserPose(Pose internalPose) {
+        return units().toUserPose(internalPose);
+    }
+
+    private Curve toInternalCurve(Curve curve) {
+        return units().toInternalCurve(curve);
+    }
+
+    private Path toInternalPath(Path path) {
+        return units().toInternalPath(path);
     }
 }

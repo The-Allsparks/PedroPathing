@@ -29,9 +29,11 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 /** This is the FollowerBuilder.
  * It is used to create Followers with a specific drivetrain + localizer without having to use a full constructor.
  *
- * <p>{@link #setUnits} selects TeamCode-facing interface units for this builder and the resulting
- * follower. Pedro still calculates in inches, kilograms, and radians. Call {@code setUnits}
- * immediately after constructing the builder, at most once.
+ * <p>{@link #setUnits} selects TeamCode-facing units for this builder and the resulting
+ * follower. After {@code setUnits}, pose, path, heading, mass, drivetrain velocity,
+ * encoder geometry, ticks-to-distance, and telemetry use those units. Pedro still calculates
+ * in inches, kilograms, and radians. Call {@code setUnits} immediately after constructing
+ * the builder, at most once.
  *
  * @author Baron Henderson - 20077 The Indubitables
  * @author The Allsparks - 36117
@@ -61,8 +63,8 @@ public class FollowerBuilder {
     /**
      * Select user-interface units for this builder. Call at most once, immediately after
      * constructing the builder and before any configured-unit setters.
-     * Does not modify global state, {@link FollowerConstants}, drivetrain constants, or hardware
-     * localizer constants.
+     * Interprets caller-supplied follower, drivetrain, and encoder constants in these units
+     * without mutating the caller-owned objects.
      */
     public FollowerBuilder setUnits(PedroUnits units) {
         lockUnits(PedroUnits.requireNonNull(units));
@@ -105,8 +107,8 @@ public class FollowerBuilder {
     }
 
     /**
-     * Starting pose in configured length and angle units. Converted immediately to inches and
-     * radians.
+     * Starting pose in configured length and angle units. Converted to inches and radians when
+     * the follower is built.
      */
     public FollowerBuilder setStartingPose(double x, double y, double heading) {
         acceptConfiguredInput();
@@ -122,9 +124,10 @@ public class FollowerBuilder {
     }
 
     /**
-     * Canonical starting pose in inches and radians.
+     * Starting pose in configured length and angle units.
      */
     public FollowerBuilder setStartingPose(Pose pose) {
+        acceptConfiguredInput();
         this.startingPose = pose;
         return this;
     }
@@ -209,7 +212,7 @@ public class FollowerBuilder {
     }
 
     public FollowerBuilder driveEncoderLocalizer(DriveEncoderConstants lConstants) {
-        return setLocalizer(new DriveEncoderLocalizer(hardwareMap, lConstants));
+        return setLocalizer(new DriveEncoderLocalizer(hardwareMap, ConfiguredHardwareUnits.toInternal(lConstants, units)));
     }
 
     public FollowerBuilder octoQuadLocalizer(OctoQuadConstants lConstants, OctoQuadLocalizer.InitMode initMode) {
@@ -225,15 +228,15 @@ public class FollowerBuilder {
     }
 
     public FollowerBuilder threeWheelIMULocalizer(ThreeWheelIMUConstants lConstants) {
-        return setLocalizer(new ThreeWheelIMULocalizer(hardwareMap, lConstants));
+        return setLocalizer(new ThreeWheelIMULocalizer(hardwareMap, ConfiguredHardwareUnits.toInternal(lConstants, units)));
     }
 
     public FollowerBuilder threeWheelLocalizer(ThreeWheelConstants lConstants) {
-        return setLocalizer(new ThreeWheelLocalizer(hardwareMap, lConstants));
+        return setLocalizer(new ThreeWheelLocalizer(hardwareMap, ConfiguredHardwareUnits.toInternal(lConstants, units)));
     }
 
     public FollowerBuilder twoWheelLocalizer(TwoWheelConstants lConstants) {
-        return setLocalizer(new TwoWheelLocalizer(hardwareMap, lConstants));
+        return setLocalizer(new TwoWheelLocalizer(hardwareMap, ConfiguredHardwareUnits.toInternal(lConstants, units)));
     }
 
     public FollowerBuilder setDrivetrain(Drivetrain drivetrain) {
@@ -243,18 +246,18 @@ public class FollowerBuilder {
     }
 
     public FollowerBuilder mecanumDrivetrain(MecanumConstants mecanumConstants) {
-        MecanumConstants resolved = applyVelocityOverrides(mecanumConstants);
+        MecanumConstants resolved = applyVelocityOverrides(ConfiguredHardwareUnits.toInternal(mecanumConstants, units));
         return setDrivetrain(new Mecanum(hardwareMap, resolved));
     }
 
     @Deprecated
     public FollowerBuilder mecanumExDrivetrain(MecanumConstants mecanumConstants) {
-        MecanumConstants resolved = applyVelocityOverrides(mecanumConstants);
+        MecanumConstants resolved = applyVelocityOverrides(ConfiguredHardwareUnits.toInternal(mecanumConstants, units));
         return setDrivetrain(new MecanumEx(hardwareMap, resolved));
     }
 
     public FollowerBuilder swerveDrivetrain(SwerveConstants swerveConstants, SwervePod... pods) {
-        SwerveConstants resolved = applyVelocityOverrides(swerveConstants);
+        SwerveConstants resolved = applyVelocityOverrides(ConfiguredHardwareUnits.toInternal(swerveConstants, units));
         return setDrivetrain(new Swerve(hardwareMap, resolved, pods));
     }
 
@@ -285,6 +288,11 @@ public class FollowerBuilder {
         }
         this.units = units;
         this.unitsConfigured = true;
+        FollowerConstants converted = ConfiguredHardwareUnits.toInternal(this.constants, this.units);
+        if (converted != this.constants) {
+            this.constants = converted;
+            this.constantsCopied = true;
+        }
     }
 
     private void acceptConfiguredInput() {

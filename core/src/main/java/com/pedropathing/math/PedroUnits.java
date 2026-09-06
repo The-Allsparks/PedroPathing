@@ -1,17 +1,25 @@
 package com.pedropathing.math;
 
+import com.pedropathing.geometry.BezierCurve;
+import com.pedropathing.geometry.BezierLine;
+import com.pedropathing.geometry.BezierPoint;
 import com.pedropathing.geometry.CoordinateSystem;
+import com.pedropathing.geometry.Curve;
 import com.pedropathing.geometry.PedroCoordinates;
 import com.pedropathing.geometry.Pose;
+import com.pedropathing.paths.Path;
 import com.pedropathing.paths.PathConstraints;
+
+import java.util.ArrayList;
 
 /**
  * Immutable user-interface unit configuration for Pedro Pathing.
  *
  * <p>Pedro always calculates in inches, kilograms, and radians. A {@code PedroUnits} instance
- * converts TeamCode-facing values into those canonical units on input and converts canonical
- * values back to the selected interface units on output. It has no process-wide mutable state
- * and is safe to reuse among followers.
+ * converts TeamCode-facing values into those canonical units at follower and path-builder
+ * boundaries. After {@code setUnits}, TeamCode pose, path, heading, and telemetry interaction
+ * uses the selected units with no mixing. It has no process-wide mutable state and is safe to
+ * reuse among followers.
  *
  * @author The Allsparks - 36117
  */
@@ -107,48 +115,127 @@ public final class PedroUnits {
     }
 
     /**
-     * Create a canonical Pedro {@link Pose} from configured-unit coordinates.
-     * The returned pose stores inches and radians.
+     * Create a TeamCode {@link Pose} whose stored numbers are already in this configuration.
+     * Pass it to follower and path-builder APIs; they convert to inches and radians internally.
      */
     public Pose pose(double x, double y, double heading) {
         return pose(x, y, heading, PedroCoordinates.INSTANCE);
     }
 
     /**
-     * Create a canonical Pedro {@link Pose} from configured-unit coordinates.
-     * The returned pose stores inches and radians.
+     * Create a TeamCode {@link Pose} whose stored numbers are already in this configuration.
      */
     public Pose pose(double x, double y) {
         return pose(x, y, 0);
     }
 
     /**
-     * Create a canonical Pedro {@link Pose} from configured-unit coordinates.
-     * The returned pose stores inches and radians.
+     * Create a TeamCode {@link Pose} whose stored numbers are already in this configuration.
      */
     public Pose pose(double x, double y, double heading, CoordinateSystem coordinateSystem) {
-        return new Pose(
-                lengthToInternal(x),
-                lengthToInternal(y),
-                angleToInternal(heading),
-                coordinateSystem);
-    }
-
-    public double x(Pose pose) {
-        return lengthFromInternal(requirePose(pose).getX());
-    }
-
-    public double y(Pose pose) {
-        return lengthFromInternal(requirePose(pose).getY());
-    }
-
-    public double heading(Pose pose) {
-        return angleFromInternal(requirePose(pose).getHeading());
+        return new Pose(x, y, heading, coordinateSystem);
     }
 
     /**
-     * Present a canonical Pedro pose in this configuration's interface units.
-     * The result is a {@link ConfiguredPose}, not a Pedro {@link Pose}.
+     * Convert a TeamCode pose in this configuration into canonical inches and radians.
+     */
+    public Pose toInternalPose(Pose userPose) {
+        requirePose(userPose);
+        return new Pose(
+                lengthToInternal(userPose.getX()),
+                lengthToInternal(userPose.getY()),
+                angleToInternal(userPose.getHeading()),
+                userPose.getCoordinateSystem());
+    }
+
+    /**
+     * Convert a canonical Pedro pose (inches and radians) into this configuration.
+     */
+    public Pose toUserPose(Pose internalPose) {
+        requirePose(internalPose);
+        return new Pose(
+                lengthFromInternal(internalPose.getX()),
+                lengthFromInternal(internalPose.getY()),
+                angleFromInternal(internalPose.getHeading()),
+                internalPose.getCoordinateSystem());
+    }
+
+    /**
+     * Convert a canonical length vector into this configuration. Direction stays in radians,
+     * matching {@link Vector}.
+     */
+    public Vector toUserVector(Vector internal) {
+        if (internal == null) {
+            return null;
+        }
+        Vector user = new Vector();
+        user.setOrthogonalComponents(
+                lengthFromInternal(internal.getXComponent()),
+                lengthFromInternal(internal.getYComponent()));
+        return user;
+    }
+
+    /**
+     * Convert a curve whose control points are in this configuration into canonical inches
+     * and radians. Identity configurations return the original curve.
+     */
+    public Curve toInternalCurve(Curve curve) {
+        if (curve == null || equals(DEFAULT)) {
+            return curve;
+        }
+        ArrayList<Pose> points = curve.getControlPoints();
+        if (points == null || points.isEmpty()) {
+            return curve;
+        }
+        ArrayList<Pose> converted = new ArrayList<>(points.size());
+        for (Pose point : points) {
+            if (point == null) {
+                return curve;
+            }
+            converted.add(toInternalPose(point));
+        }
+        if (converted.size() == 1) {
+            return new BezierPoint(converted.get(0));
+        }
+        if (converted.size() == 2) {
+            return new BezierLine(converted.get(0), converted.get(1));
+        }
+        return new BezierCurve(converted, curve.getPathConstraints());
+    }
+
+    /**
+     * Convert a path whose curve is in this configuration into canonical inches and radians.
+     * Heading interpolators and constraints are copied as-is (they are already canonical once
+     * PathBuilder numeric APIs have converted them).
+     */
+    public Path toInternalPath(Path path) {
+        if (path == null || equals(DEFAULT)) {
+            return path;
+        }
+        Path converted = new Path(toInternalCurve(path.getCurve()), path.getConstraints());
+        converted.setHeadingInterpolation(path.getHeadingInterpolator());
+        return converted;
+    }
+
+    public static boolean differs(double value, double defaultValue) {
+        return Double.compare(value, defaultValue) != 0;
+    }
+
+    public double x(Pose pose) {
+        return requirePose(pose).getX();
+    }
+
+    public double y(Pose pose) {
+        return requirePose(pose).getY();
+    }
+
+    public double heading(Pose pose) {
+        return requirePose(pose).getHeading();
+    }
+
+    /**
+     * Present a canonical Pedro pose in this configuration's interface units, including unit
+     * symbols. Prefer {@link #toUserPose(Pose)} when you need a {@link Pose}.
      */
     public ConfiguredPose fromInternalPose(Pose pose) {
         requirePose(pose);

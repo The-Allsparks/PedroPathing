@@ -82,8 +82,8 @@ public class Follower {
 
     /**
      * This creates a new Follower with an explicit user-interface unit configuration.
-     * Pedro still calculates in inches, kilograms, and radians; {@code units} is used only by
-     * configured-interface helpers.
+     * Pedro still calculates in inches, kilograms, and radians. After construction, TeamCode
+     * pose, path, heading, and telemetry APIs use {@code units}.
      */
     public Follower(FollowerConstants constants, Localizer localizer, Drivetrain drivetrain, PathConstraints pathConstraints, PedroUnits units) {
         this.constants = constants;
@@ -143,13 +143,13 @@ public class Follower {
     }
 
     /**
-     * This gets a Point from the current Path from a specified t-value.
+     * This gets a Point from the current Path from a specified t-value, in configured units.
      *
      * @return returns the Point.
      */
     public Pose getPointFromPath(double t) {
         if (currentPath != null) {
-            return currentPath.getPoint(t);
+            return units.toUserPose(currentPath.getPoint(t));
         } else {
             return null;
         }
@@ -157,62 +157,72 @@ public class Follower {
 
     /**
      * This sets the current pose in the PoseTracker without using offsets.
+     * {@code pose} is in this follower's configured units.
      *
      * @param pose The pose to set the current pose to.
      */
     public void setPose(Pose pose) {
-        poseTracker.setPose(pose);
+        poseTracker.setPose(units.toInternalPose(pose));
     }
 
     /**
-     * This sets the current x-position estimate of the localizer. Units are inferred from localizer constants where necessary.
+     * This sets the current x-position estimate of the localizer in configured length units.
      * @param x the x-position estimate to set
      */
     public void setX(double x) {
-        poseTracker.getLocalizer().setX(x);
+        poseTracker.getLocalizer().setX(units.lengthToInternal(x));
     }
 
     /**
-     * This sets the current y-position estimate of the localizer. Units are inferred from localizer constants where necessary.
+     * This sets the current y-position estimate of the localizer in configured length units.
      * @param y the y-position estimate to set
      */
     public void setY(double y) {
-        poseTracker.getLocalizer().setY(y);
+        poseTracker.getLocalizer().setY(units.lengthToInternal(y));
     }
 
     /**
-     * This sets the current heading estimate of the localizer, in radians.
+     * This sets the current heading estimate of the localizer, in configured angle units.
      * @param heading the heading estimate to set
      */
     public void setHeading(double heading) {
-        poseTracker.getLocalizer().setHeading(heading);
+        poseTracker.getLocalizer().setHeading(units.angleToInternal(heading));
     }
 
     /**
-     * This returns the current pose from the PoseTracker.
+     * This returns the current pose in this follower's configured units.
      *
      * @return returns the pose
      */
     public Pose getPose() {
+        return units.toUserPose(poseTracker.getPose());
+    }
+
+    /**
+     * Canonical pose in inches and radians. Use for Panels Field drawing and other consumers
+     * that still expect Pedro's internal coordinates.
+     */
+    public Pose getInternalPose() {
         return poseTracker.getPose();
     }
 
     /**
-     * This returns the current velocity of the robot as a Vector.
+     * This returns the current velocity of the robot as a Vector in configured length units
+     * per second. Vector direction remains radians.
      *
      * @return returns the current velocity as a Vector.
      */
     public Vector getVelocity() {
-        return poseTracker.getVelocity();
+        return units.toUserVector(poseTracker.getVelocity());
     }
 
     /**
-     * This sets the starting pose. Do not run this after moving at all.
+     * This sets the starting pose in configured units. Do not run this after moving at all.
      *
      * @param pose the pose to set the starting pose to.
      */
     public void setStartingPose(Pose pose) {
-        poseTracker.setStartingPose(pose);
+        poseTracker.setStartingPose(units.toInternalPose(pose));
     }
 
     /**
@@ -223,13 +233,20 @@ public class Follower {
      * @param useHoldScaling true if you want to correct and turn slowly, false otherwise
      */
     public void holdPoint(BezierPoint point, double heading, boolean useHoldScaling) {
+        holdPointInternal(
+                new BezierPoint(units.toInternalPose(point.getFirstControlPoint())),
+                units.angleToInternal(heading),
+                useHoldScaling);
+    }
+
+    private void holdPointInternal(BezierPoint internalPoint, double headingRadians, boolean useHoldScaling) {
         breakFollowing();
         holdingPosition = true;
         this.useHoldScaling = useHoldScaling;
         isBusy = false;
         followingPathChain = false;
-        setPath(new Path(point));
-        currentPath.setConstantHeadingInterpolation(heading);
+        setPath(new Path(internalPoint));
+        currentPath.setConstantHeadingInterpolation(headingRadians);
         previousClosestPose = closestPose;
         closestPose = currentPath.updateClosestPose(poseTracker.getPose(), 1);
     }
@@ -251,16 +268,17 @@ public class Follower {
      * @param pose the Point (as a Pose) to stay at.
      */
     public void holdPoint(Pose pose) {
-        holdPoint(new BezierPoint(pose), pose.getHeading(), true);
+        holdPoint(pose, true);
     }
 
     /**
-     * This holds a Point.
+     * This holds a Point in configured units.
      *
      * @param pose the Point (as a Pose) to stay at.
      */
     public void holdPoint(Pose pose, boolean useHoldScaling) {
-        holdPoint(new BezierPoint(pose), pose.getHeading(), useHoldScaling);
+        Pose internal = units.toInternalPose(pose);
+        holdPointInternal(new BezierPoint(internal), internal.getHeading(), useHoldScaling);
     }
 
     /**
@@ -276,7 +294,7 @@ public class Follower {
         holdPositionAtEnd = holdEnd;
         isBusy = true;
         followingPathChain = false;
-        setPath(path);
+        setPath(units.toInternalPath(path));
         previousClosestPose = closestPose;
         closestPose = currentPath.updateClosestPose(poseTracker.getPose(), BEZIER_CURVE_SEARCH_LIMIT);
     }
@@ -420,7 +438,7 @@ public class Follower {
      * @param offsetHeading the offset heading for field centric control, will face the direction of such heading in radians in the field coordinate system when driving forward
      */
     public void setTeleOpDrive(double forward, double strafe, double turn, boolean isRobotCentric, double offsetHeading) {
-        vectorCalculator.setTeleOpMovementVectors(forward, strafe, turn, isRobotCentric, offsetHeading);
+        vectorCalculator.setTeleOpMovementVectors(forward, strafe, turn, isRobotCentric, units.angleToInternal(offsetHeading));
     }
 
     /**
@@ -429,10 +447,10 @@ public class Follower {
      * @param forward the forward movement
      * @param strafe the strafe movement
      * @param turn the turn movement
-     * @param offsetHeading the offset heading for field centric control, will face the direction of such heading in radians in the field coordinate system when driving forward
+     * @param offsetHeading the offset heading for field centric control, in configured angle units
      */
     public void setTeleOpDrive(double forward, double strafe, double turn, double offsetHeading) {
-        vectorCalculator.setTeleOpMovementVectors(forward, strafe, turn, true, offsetHeading);
+        vectorCalculator.setTeleOpMovementVectors(forward, strafe, turn, true, units.angleToInternal(offsetHeading));
     }
 
     /**
@@ -484,9 +502,9 @@ public class Follower {
                                 centripetalScaling, currentPose, closestPose.getPose(),
                                 poseTracker.getVelocity(), currentPath,
                                 currentPathChain, useDrive && !holdingPosition ?
-                                    getDriveError() : -1, getTranslationalError(),
-                                getHeadingError(), getClosestPointHeadingGoal(),
-                                getTotalDistanceRemaining(), usePredictiveBraking);
+                                    errorCalculator.getDriveError() : -1, errorCalculator.getTranslationalError(),
+                                errorCalculator.getHeadingError(), getClosestPointHeadingGoal(),
+                                internalTotalDistanceRemaining(), usePredictiveBraking);
     }
 
     public void updateErrorAndVectors() {updateErrors(); updateVectors();}
@@ -507,7 +525,7 @@ public class Follower {
             previousClosestPose = closestPose;
             closestPose = new PathPoint();
             updateErrorAndVectors();
-            drivetrain.runDrive(getCentripetalForceCorrection(), getTeleopHeadingVector(), getTeleopDriveVector(), poseTracker.getPose().getHeading(), getVelocity());
+            drivetrain.runDrive(getCentripetalForceCorrection(), getTeleopHeadingVector(), getTeleopDriveVector(), poseTracker.getPose().getHeading(), poseTracker.getVelocity());
             return;
         }
 
@@ -520,9 +538,9 @@ public class Follower {
             if (followingPathChain) currentPathChain.update();
             closestPose = currentPath.updateClosestPose(poseTracker.getPose(), 1);
             updateErrorAndVectors();
-            drivetrain.runDrive(useHoldScaling? getTranslationalCorrection().times(holdPointTranslationalScaling) : getTranslationalCorrection(), useHoldScaling? getHeadingVector().times(holdPointHeadingScaling) : getHeadingVector(), new Vector(), poseTracker.getPose().getHeading(), getVelocity());
+            drivetrain.runDrive(useHoldScaling? getTranslationalCorrection().times(holdPointTranslationalScaling) : getTranslationalCorrection(), useHoldScaling? getHeadingVector().times(holdPointHeadingScaling) : getHeadingVector(), new Vector(), poseTracker.getPose().getHeading(), poseTracker.getVelocity());
 
-            if(Math.abs(getHeadingError()) < turnHeadingErrorThreshold && isTurning) {
+            if(Math.abs(errorCalculator.getHeadingError()) < turnHeadingErrorThreshold && isTurning) {
                 isTurning = false;
                 isBusy = false;
             }
@@ -535,7 +553,7 @@ public class Follower {
             closestPose = currentPath.updateClosestPose(poseTracker.getPose(), BEZIER_CURVE_SEARCH_LIMIT);
             updateErrorAndVectors();
             if (followingPathChain) updateCallbacks();
-            drivetrain.runDrive(getCorrectiveVector(), getHeadingVector(), getDriveVector(), poseTracker.getPose().getHeading(), getVelocity());
+            drivetrain.runDrive(getCorrectiveVector(), getHeadingVector(), getDriveVector(), poseTracker.getPose().getHeading(), poseTracker.getVelocity());
         }
 
         if (poseTracker.getVelocity().getMagnitude() < constants.stuckVelocity && zeroVelocityDetectedTimer == null && isBusy &&
@@ -706,11 +724,11 @@ public class Follower {
     }
 
     /**
-     * This returns the total number of radians the robot has turned.
+     * This returns the total heading the robot has turned, in configured angle units.
      * @return the total heading.
      */
     public double getTotalHeading() {
-        return poseTracker.getTotalHeading();
+        return units.angleFromInternal(poseTracker.getTotalHeading());
     }
 
     /**
@@ -731,34 +749,37 @@ public class Follower {
         return poseTracker.getLocalizer().isNAN();
     }
 
-    /** Turns a certain amount of degrees
-     * @param radians the amount of radians to turn
+    /** Turns by a heading amount in configured angle units.
+     * @param headingDelta the amount to turn
      * @param counterClockwise true if turning counterclockwise, false if turning clockwise
      */
-    public void turn(double radians, boolean counterClockwise) {
-        Pose temp = new Pose(getPose().getX(), getPose().getY(), getPose().getHeading() + (counterClockwise ? radians : -radians));
-        holdPoint(temp, false);
+    public void turn(double headingDelta, boolean counterClockwise) {
+        double radians = units.angleToInternal(headingDelta);
+        Pose internal = poseTracker.getPose();
+        holdPointInternal(
+                new BezierPoint(new Pose(internal.getX(), internal.getY(), internal.getHeading() + (counterClockwise ? radians : -radians))),
+                internal.getHeading() + (counterClockwise ? radians : -radians),
+                false);
         isTurning = true;
         isBusy = true;
     }
 
-    /** Turns a certain amount of degrees counterclockwise
-     * @param radians the amount of radians to turn
+    /** Turns by a heading amount in configured angle units, counterclockwise positive.
+     * @param headingDelta the amount to turn
      */
-    public void turn(double radians) {
-        Pose temp = new Pose(getPose().getX(), getPose().getY(), getPose().getHeading() + radians);
-        holdPoint(temp, false);
-        isTurning = true;
-        isBusy = true;
+    public void turn(double headingDelta) {
+        turn(headingDelta, true);
     }
 
 
-    /** Turns to a specific heading
-     * @param radians the heading in radians to turn to
+    /** Turns to a specific heading in configured angle units.
+     * @param heading the heading to turn to
      */
-    public void turnTo(double radians) {
-        double heading = MathFunctions.normalizeAngleSigned(getHeading() + MathFunctions.getSmallestAngleDifference(getHeading(), radians));
-        holdPoint(new Pose(getPose().getX(), getPose().getY(), heading), false);
+    public void turnTo(double heading) {
+        double target = units.angleToInternal(heading);
+        Pose internal = poseTracker.getPose();
+        double resolved = MathFunctions.normalizeAngleSigned(internal.getHeading() + MathFunctions.getSmallestAngleDifference(internal.getHeading(), target));
+        holdPointInternal(new BezierPoint(new Pose(internal.getX(), internal.getY(), resolved)), resolved, false);
         isTurning = true;
         isBusy = true;
     }
@@ -768,7 +789,12 @@ public class Follower {
      */
     @Deprecated
     public void turnToDegrees(double degrees) {
-        turnTo(Math.toRadians(degrees));
+        Pose internal = poseTracker.getPose();
+        double radians = Math.toRadians(degrees);
+        double resolved = MathFunctions.normalizeAngleSigned(internal.getHeading() + MathFunctions.getSmallestAngleDifference(internal.getHeading(), radians));
+        holdPointInternal(new BezierPoint(new Pose(internal.getX(), internal.getY(), resolved)), resolved, false);
+        isTurning = true;
+        isBusy = true;
     }
 
     /** Turns a certain amount of degrees left
@@ -777,7 +803,14 @@ public class Follower {
      */
     @Deprecated
     public void turnDegrees(double degrees, boolean isLeft) {
-        turn(Math.toRadians(degrees), isLeft);
+        Pose internal = poseTracker.getPose();
+        double radians = Math.toRadians(degrees);
+        holdPointInternal(
+                new BezierPoint(new Pose(internal.getX(), internal.getY(), internal.getHeading() + (isLeft ? radians : -radians))),
+                internal.getHeading() + (isLeft ? radians : -radians),
+                false);
+        isTurning = true;
+        isBusy = true;
     }
 
     public boolean isTurning() {
@@ -785,7 +818,8 @@ public class Follower {
     }
 
     /**
-     * Checks if the robot is at a certain pose within certain tolerances
+     * Checks if the robot is at a certain pose within certain tolerances.
+     * The pose and tolerances are in this follower's configured units.
      * @param pose Pose to compare with the current pose
      * @param xTolerance Tolerance for the x position
      * @param yTolerance Tolerance for the y position
@@ -867,24 +901,22 @@ public class Follower {
     public Vector getTeleopDriveVector() { return vectorCalculator.getTeleopDriveVector(); }
 
     /**
-     * This returns the heading error, which is the difference between the robot's current heading and the closest point's heading goal.
+     * This returns the heading error in configured angle units.
      * @return returns the heading error
      */
-    public double getHeadingError() { return errorCalculator.getHeadingError(); }
+    public double getHeadingError() { return units.angleFromInternal(errorCalculator.getHeadingError()); }
 
     /**
-     * This returns the translational error, which is the distance between the robot's current position and the closest point's position.
+     * This returns the translational error in configured length units.
      * @return returns the translational error as a Vector.
      */
-    public Vector getTranslationalError() { return errorCalculator.getTranslationalError(); }
+    public Vector getTranslationalError() { return units.toUserVector(errorCalculator.getTranslationalError()); }
 
     /**
-     * This returns the drive error, which is computed by taking the distance to the goal. Using this distance,
-     * Pedro uses a predictive model to determine what the target velocity should be in order to reach the goal without overshooting.
-     * The drive error is taken to be a modified form of the difference between the target velocity and the current velocity, which is then infused with a Kalman Filter
+     * This returns the drive error in configured length units per second.
      * @return The drive error as a double.
      */
-    public double getDriveError() { return errorCalculator.getDriveError(); }
+    public double getDriveError() { return units.velocityFromInternal(errorCalculator.getDriveError()); }
 
     /**
      * This returns the drive vector, which is the vector that the robot should be moving towards to reach the closest point on the Path.
@@ -930,34 +962,104 @@ public class Follower {
     }
 
     /**
-     * Create a canonical Pedro {@link Pose} from coordinates in this follower's configured units.
-     * The returned pose stores inches and radians.
+     * Create a {@link Pose} in this follower's configured units. The stored numbers are those units;
+     * pass the pose to follower and path-builder APIs.
      */
     public Pose pose(double x, double y, double heading) {
         return units.pose(x, y, heading);
     }
 
     /**
-     * Create a canonical Pedro {@link Pose} from coordinates in this follower's configured units.
-     * The returned pose stores inches and a heading of 0 radians.
+     * Create a {@link Pose} in this follower's configured length units with heading 0.
      */
     public Pose pose(double x, double y) {
         return units.pose(x, y);
     }
 
     /**
-     * Present the current pose in this follower's configured interface units.
-     * The result is not a Pedro {@link Pose} and must not be passed back into follower math.
+     * Present the current pose in this follower's configured units with unit symbols.
      */
     public ConfiguredPose getPoseInConfiguredUnits() {
-        return units.fromInternalPose(getPose());
+        return units.fromInternalPose(getInternalPose());
     }
 
     /**
-     * This returns the FollowerConstants, which are the constants used by the Follower.
-     * @return returns the FollowerConstants
+     * This returns the FollowerConstants used by the Follower.
+     * PID coefficients on this object are unitless. Prefer {@link #getMass()},
+     * {@link #getForwardZeroPowerAcceleration()}, and {@link #getLateralZeroPowerAcceleration()}
+     * for physical quantities in configured units.
      */
     public FollowerConstants getConstants() { return constants; }
+
+    /**
+     * Robot mass in configured mass units.
+     */
+    public double getMass() {
+        return units.massFromInternal(constants.mass);
+    }
+
+    /**
+     * Robot mass in configured mass units.
+     */
+    public void setMass(double mass) {
+        constants.mass(units.massToInternal(mass));
+    }
+
+    /**
+     * Forward zero-power acceleration in configured length units per second squared.
+     */
+    public double getForwardZeroPowerAcceleration() {
+        return units.accelerationFromInternal(constants.forwardZeroPowerAcceleration);
+    }
+
+    /**
+     * Forward zero-power acceleration in configured length units per second squared.
+     */
+    public void setForwardZeroPowerAcceleration(double acceleration) {
+        constants.setForwardZeroPowerAcceleration(units.accelerationToInternal(acceleration));
+    }
+
+    /**
+     * Lateral zero-power acceleration in configured length units per second squared.
+     */
+    public double getLateralZeroPowerAcceleration() {
+        return units.accelerationFromInternal(constants.lateralZeroPowerAcceleration);
+    }
+
+    /**
+     * Lateral zero-power acceleration in configured length units per second squared.
+     */
+    public void setLateralZeroPowerAcceleration(double acceleration) {
+        constants.setLateralZeroPowerAcceleration(units.accelerationToInternal(acceleration));
+    }
+
+    /**
+     * Path completion velocity in configured length units per second.
+     */
+    public double getPathCompletionVelocity() {
+        return units.velocityFromInternal(pathConstraints.getVelocityConstraint());
+    }
+
+    /**
+     * Forward ticks-to-distance multiplier in configured length units per tick.
+     */
+    public double getForwardMultiplier() {
+        return units.lengthFromInternal(poseTracker.getLocalizer().getForwardMultiplier());
+    }
+
+    /**
+     * Lateral ticks-to-distance multiplier in configured length units per tick.
+     */
+    public double getLateralMultiplier() {
+        return units.lengthFromInternal(poseTracker.getLocalizer().getLateralMultiplier());
+    }
+
+    /**
+     * Turning ticks-to-angle multiplier in configured angle units per tick.
+     */
+    public double getTurningMultiplier() {
+        return units.angleFromInternal(poseTracker.getLocalizer().getTurningMultiplier());
+    }
 
     /**
      * This sets the PathConstraints for the Follower.
@@ -996,16 +1098,30 @@ public class Follower {
     public PoseHistory getPoseHistory() { return poseHistory; }
 
     /**
-     * This sets the x movement of the drivetrain.
+     * This sets the x movement of the drivetrain in configured length units per second.
      * @param vel the x movement to set
      */
-    public void setXVelocity(double vel) { drivetrain.setXVelocity(vel); }
+    public void setXVelocity(double vel) { drivetrain.setXVelocity(units.velocityToInternal(vel)); }
 
     /**
-     * This sets the y velocity of the drivetrain.
+     * Forward maximum velocity in configured length units per second.
+     */
+    public double getXVelocity() {
+        return units.velocityFromInternal(drivetrain.xVelocity());
+    }
+
+    /**
+     * This sets the y velocity of the drivetrain in configured length units per second.
      * @param vel the y velocity to set
      */
-    public void setYVelocity(double vel) { drivetrain.setYVelocity(vel); }
+    public void setYVelocity(double vel) { drivetrain.setYVelocity(units.velocityToInternal(vel)); }
+
+    /**
+     * Lateral maximum velocity in configured length units per second.
+     */
+    public double getYVelocity() {
+        return units.velocityFromInternal(drivetrain.yVelocity());
+    }
 
     /**
      * This sets the Drive PIDF coefficients for the Follower.
@@ -1152,7 +1268,7 @@ public class Follower {
         if (currentPath == null) {
             return 0;
         }
-        return currentPath.getDistanceTraveled();
+        return units.lengthFromInternal(currentPath.getDistanceTraveled());
     }
 
     /**
@@ -1174,7 +1290,7 @@ public class Follower {
         if (currentPath == null) {
             return 0;
         }
-        return currentPath.getDistanceRemaining();
+        return units.lengthFromInternal(currentPath.getDistanceRemaining());
     }
 
     /**
@@ -1194,15 +1310,15 @@ public class Follower {
      * @return returns the acceleration as a Vector.
      */
     public Vector getAcceleration() {
-        return poseTracker.getAcceleration();
+        return units.toUserVector(poseTracker.getAcceleration());
     }
 
     /**
-     * This returns the angular velocity of the robot.
+     * This returns the angular velocity of the robot in configured angle units per second.
      * @return returns the angular velocity as a double.
      */
     public double getAngularVelocity() {
-        return poseTracker.getAngularVelocity();
+        return units.angleFromInternal(poseTracker.getAngularVelocity());
     }
 
     private void setPath(Path path) {
@@ -1219,7 +1335,7 @@ public class Follower {
      * @return the tangential velocity of the robot
      */
     public double getTangentialVelocity() {
-        return getVelocity().dot(getClosestPointTangentVector().normalize());
+        return units.velocityFromInternal(poseTracker.getVelocity().dot(getClosestPointTangentVector().normalize()));
     }
 
     public double getHeading() {
@@ -1227,10 +1343,15 @@ public class Follower {
     }
 
     /**
-     * Gets the total distance remaining for the robot to follow along the entire PathChain
+     * Gets the total distance remaining for the robot to follow along the entire PathChain,
+     * in configured length units.
      * @return the distance left on the current PathChain to follow
      */
     public double getTotalDistanceRemaining() {
+        return convertDistanceRemaining(internalTotalDistanceRemaining());
+    }
+
+    private double internalTotalDistanceRemaining() {
         if (currentPath == null) {
             return 0;
         }
@@ -1245,5 +1366,12 @@ public class Follower {
         }
         
         return currentPathChain.getDistanceRemaining(chainIndex);
+    }
+
+    private double convertDistanceRemaining(double inches) {
+        if (inches < 0) {
+            return inches;
+        }
+        return units.lengthFromInternal(inches);
     }
 }

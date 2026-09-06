@@ -10,7 +10,7 @@ Upstream docs and tuning: [pedropathing.com](https://pedropathing.com/). Discord
 
 Upstream Pedro calculates in **inches**, **kilograms**, and **radians**. This fork adds a TeamCode-facing unit conversion layer so a team can enter and display values in their preferred units without changing Pedro’s internal math.
 
-`.setUnits(...)` selects those interface units once per `FollowerBuilder`. Existing Pedro APIs keep their original canonical meanings.
+`.setUnits(...)` selects those units once per `FollowerBuilder`. After that, TeamCode pose, path, heading, and telemetry interaction uses the selected units. Pedro still calculates in inches, kilograms, and radians behind that boundary.
 
 ## Canonical internal units
 
@@ -24,7 +24,7 @@ Pedro always calculates in:
 * Angular velocity: radians per second
 * Existing timeout/time units unchanged
 
-`.setUnits(...)` does **not** rescale PID coefficients, covariance, drivetrain defaults, path constraints, poses, or follower math.
+`.setUnits(...)` does **not** rescale PID coefficients, covariance, or drivetrain defaults. It converts TeamCode-facing poses, paths, headings, and configured builder setters at the follower boundary.
 
 ## Supported interface units
 
@@ -36,24 +36,11 @@ Angles: `RADIANS`, `DEGREES` (`AngularUnit` in core, to avoid colliding with the
 
 Millimeters are **not** a selectable interface unit. They may be used internally by hardware adapters such as OctoQuad.
 
-## Two API layers
+## One TeamCode unit system
 
-### Existing Pedro API (canonical)
+If you never call `.setUnits(...)`, behavior matches upstream Pedro (inches, kilograms, and radians).
 
-These keep their original meanings even after `.setUnits(...)`:
-
-```java
-new Pose(24, 48, Math.PI / 2); // 24 in, 48 in, π/2 rad
-constants.mass(10.65);         // kilograms
-constants.forwardZeroPowerAcceleration(-41.278); // in/s^2
-mecanumConstants.xVelocity(81.34); // in/s
-pose.getX();                   // inches
-pose.getHeading();             // radians
-```
-
-### Configured interface API
-
-New helpers on `FollowerBuilder`, `Follower`, and `PedroUnits` interpret numbers using the units selected once by `.setUnits(...)`. You do not repeat the unit on every call.
+If you do call `.setUnits(...)`, do not mix. Poses, path control points, heading interpolation, `getPose()`, `atPose()`, `turnTo()`, mass, drivetrain velocity, encoder geometry, ticks-to-distance, and telemetry all use those units:
 
 ```java
 Follower follower = new FollowerBuilder(constants, hardwareMap)
@@ -63,9 +50,36 @@ Follower follower = new FollowerBuilder(constants, hardwareMap)
         .pinpointLocalizer(pinpointConstants)
         .mecanumDrivetrain(mecanumConstants)
         .build();
+
+Pose start = follower.pose(2, 4, 90);
+Pose end = follower.pose(5, 3, 180);
+follower.pathBuilder()
+        .addPath(new BezierLine(start, end))
+        .setConstantHeadingInterpolation(180)
+        .build();
+
+Pose now = follower.getPose();
+double xFeet = now.getX();
+double headingDeg = now.getHeading();
+double massLb = follower.getMass();
 ```
 
-Internally that becomes approximately 10.659 kg, 24 inches, 48 inches, and π/2 radians.
+Internally that starting pose is 24 inches, 48 inches, and π/2 radians. You do not read or write those canonical numbers from TeamCode after `.setUnits(...)`.
+
+`new Pose(24, 48, Math.PI / 2)` has no unit context. After `.setUnits(FEET, DEGREES)`, those numbers would mean 24 feet and π/2 degrees. Create poses with `follower.pose(...)` or `units.pose(...)`.
+
+Constants objects passed into `FollowerBuilder` after `.setUnits(...)` are also in the selected units. Unchanged Pedro library defaults stay as Pedro's inch/kg/radian defaults so Strafer numbers are not reinterpreted as feet or pounds:
+
+```java
+new FollowerConstants().mass(23.5);          // pounds if setUnits selected pounds
+mecanumConstants.xVelocity(6.78);            // feet/s if setUnits selected feet
+localizerConstants.robotWidth(1.2);          // feet
+localizerConstants.forwardTicksToInches(0.02); // feet per tick
+```
+
+Pinpoint `distanceUnit`, OTOS `linearUnit`, and OctoQuad millimeters stay hardware-device units.
+
+`ConfiguredPose` is optional telemetry with unit symbols. `follower.getPose()` is already in the selected units.
 
 ## Basic setup
 
@@ -106,32 +120,27 @@ FollowerBuilder setUnits(LengthUnit lengthUnit, AngularUnit angleUnit); // mass 
 
 `PedroUnits.DEFAULT` is inches, kilograms, and radians. Calling `.setUnits(PedroUnits.DEFAULT)` explicitly is valid. A second call throws `IllegalStateException`.
 
-## Configured pose construction and output
+## Poses, paths, and telemetry
 
 ```java
 Pose start = follower.pose(2, 4, 90);
 Pose target = follower.getUnits().pose(5, 3, 180);
 follower.setStartingPose(start);
+follower.pathBuilder()
+        .addPath(new BezierLine(start, target))
+        .setLinearHeadingInterpolation(90, 180)
+        .build();
+
+double x = follower.getPose().getX();
+double heading = follower.getPose().getHeading();
+ConfiguredPose labeled = follower.getPoseInConfiguredUnits();
 ```
 
-Those `Pose` objects store canonical inches and radians, so they are safe to pass through existing Pedro path APIs.
-
-Do not put feet or degrees into a standard `Pose`. Configured output uses a distinct type:
-
-```java
-ConfiguredPose display = follower.getPoseInConfiguredUnits();
-double xFeet = display.x();
-double headingDeg = display.heading();
-
-double x = follower.getUnits().x(follower.getPose());
-ConfiguredPose same = follower.getUnits().fromInternalPose(follower.getPose());
-```
-
-`ConfiguredPose` is not a Pedro `Pose` and must not be passed into follower math.
+Panels Field drawing still uses Pedro inches. Use `follower.getInternalPose()` there.
 
 ## Path constraints
 
-`PathConstraints` still stores inches per second, inches, and radians. Build them from configured units:
+`PathConstraints` objects store inches per second, inches, and radians. Build them from configured units, or set completion tolerances on `FollowerBuilder` / `PathBuilder`:
 
 ```java
 PathConstraints constraints = follower.getUnits()
@@ -183,7 +192,7 @@ new FollowerBuilder(constants, hardwareMap)
 
 OctoQuad ticks-per-mm and TCP offsets remain millimeters. Pose and velocity become Pedro inches.
 
-Encoder multipliers remain **inches per tick**. Prefer the upstream names `forwardTicksToInches` / `strafeTicksToInches` / `turnTicksToInches`, or the clearer aliases `forwardInchesPerTick`, `strafeInchesPerTick`, and `turnRadiansPerTick`.
+Encoder field names stay `forwardTicksToInches` / `strafeTicksToInches` / `turnTicksToInches`. After `.setUnits(...)`, those numbers are **configured length per tick** (and configured angle per tick for turn). Internally they become inches per tick / radians per tick.
 
 ## Centimeters, kilograms, and degrees
 
@@ -192,12 +201,12 @@ Follower follower = new FollowerBuilder(new FollowerConstants().mass(10), hardwa
         .setUnits(LengthUnit.CENTIMETERS, AngularUnit.DEGREES)
         .setStartingPose(60.96, 0, 90)
         .build();
-Pose tile = follower.pose(60.96, 0, 0); // 24 inches internally
+Pose tile = follower.pose(60.96, 0, 0); // 60.96 cm in getX(); 24 inches internally
 ```
 
 ## Panels / tuners
 
-Pedro poses are already inches. Panels Field drawing uses those inches directly. Standard tuner distances remain inches internally. Telemetry may show configured units through `follower.getPoseInConfiguredUnits()`.
+Panels Field drawing uses Pedro inches. Draw with `follower.getInternalPose()`. Tuner telemetry and pull distances follow the units selected by `.setUnits(...)`.
 
 ## Migration from the prototype
 
@@ -220,21 +229,19 @@ public static FollowerConstants followerConstants = new FollowerConstants().mass
 Follower follower = new FollowerBuilder(followerConstants, hardwareMap)
         .setUnits(UNITS)
         .build();
-Pose end = follower.pose(60.96, 0, 0); // centimeters in, inches stored
+Pose end = follower.pose(60.96, 0, 0); // centimeters, including getX()
 ```
 
 Existing inch-based TeamCode that never calls `.setUnits(...)` does not need pose or path number changes.
 
 ## Backward compatibility
 
-* Existing `Pose` constructors and getters remain inches/radians.
-* Existing mass setters remain kilograms.
-* Existing path constraints remain inches/radians.
-* Existing drivetrain constants remain inches per second.
-* Existing encoder fields remain inches per tick.
+* If you never call `.setUnits(...)`, existing `Pose` constructors and getters remain inches/radians.
+* If you never call `.setUnits(...)`, mass setters remain kilograms and drivetrain/encoder lengths remain inches.
+* After `.setUnits(...)`, `FollowerBuilder` interprets caller-supplied mass, accelerations, drivetrain velocities, encoder geometry, and ticks-to-distance in the selected units. Caller-owned objects are copied before conversion.
+* Unchanged Pedro library defaults are left in Pedro's canonical units.
 * Hardware `DistanceUnit` settings still work and are not overwritten.
 * No global unit initialization is required.
-* Caller-owned constants objects are not rewritten unless you use configured builder setters, which copy first.
 
 `FollowerBuilder.pathConstraints(...)` does not call `PathConstraints.setDefaultConstraints(...)`, so constructing one follower cannot change another’s defaults.
 
@@ -242,7 +249,8 @@ Existing inch-based TeamCode that never calls `.setUnits(...)` does not need pos
 
 * Encoder localizers still use process-wide static tick-to-distance fields (upstream pattern). Two encoder localizers in one process can overwrite those statics.
 * Kalman filters initialize variance to `1` (upstream).
-* Configured path-builder numeric overloads are not added; create canonical `Pose` objects with `follower.pose(...)` and use existing path APIs.
+* `HeadingInterpolator.facingPoint(x, y)` and custom interpolators that read path geometry still use canonical path coordinates. Prefer `PathBuilder.setFacingPointHeadingInterpolation(x, y)` after `.setUnits(...)`.
+* Pinpoint offsets follow Pinpoint `distanceUnit`. OTOS offsets follow OTOS `linearUnit`. OctoQuad ticks-per-mm stay millimeters.
 
 ## Upstream synchronization
 

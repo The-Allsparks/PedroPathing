@@ -26,7 +26,8 @@ public class SelectableUnitSetupExample {
         Pose start = UNITS.pose(0, 0, 0);
         Pose end = UNITS.pose(60.96, 0, 0);
         org.junit.Assert.assertEquals(0.0, start.getX(), 1e-9);
-        org.junit.Assert.assertEquals(24.0, end.getX(), 1e-9);
+        org.junit.Assert.assertEquals(60.96, end.getX(), 1e-9);
+        org.junit.Assert.assertEquals(24.0, UNITS.toInternalPose(end).getX(), 1e-9);
 
         PathConstraints constraints = UNITS.pathConstraints()
                 .velocityConstraint(2.54)

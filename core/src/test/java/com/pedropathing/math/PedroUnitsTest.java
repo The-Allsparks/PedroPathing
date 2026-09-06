@@ -69,12 +69,19 @@ public class PedroUnitsTest {
     }
 
     @Test
-    public void poseFactoryProducesCanonicalInchesAndRadians() {
+    public void poseFactoryStoresConfiguredUnits() {
         PedroUnits units = new PedroUnits(LengthUnit.FEET, MassUnit.POUNDS, AngularUnit.DEGREES);
         Pose pose = units.pose(2, 4, 90);
-        assertEquals(24.0, pose.getX(), EPS);
-        assertEquals(48.0, pose.getY(), EPS);
-        assertEquals(Math.PI / 2, pose.getHeading(), EPS);
+        assertEquals(2.0, pose.getX(), EPS);
+        assertEquals(4.0, pose.getY(), EPS);
+        assertEquals(90.0, pose.getHeading(), EPS);
+        Pose internal = units.toInternalPose(pose);
+        assertEquals(24.0, internal.getX(), EPS);
+        assertEquals(48.0, internal.getY(), EPS);
+        assertEquals(Math.PI / 2, internal.getHeading(), EPS);
+        Pose roundTrip = units.toUserPose(internal);
+        assertEquals(2.0, roundTrip.getX(), EPS);
+        assertEquals(90.0, roundTrip.getHeading(), EPS);
     }
 
     @Test
