@@ -208,32 +208,6 @@ Pose tile = follower.pose(60.96, 0, 0); // 60.96 cm in getX(); 24 inches interna
 
 Panels Field drawing uses Pedro inches. Draw with `follower.getInternalPose()`. Tuner telemetry and pull distances follow the units selected by `.setUnits(...)`.
 
-## Migration from the prototype
-
-The prototype `LengthUnit.use(...)` / `LengthUnit.active()` global API, `FollowerConstants.defaultsFor(...)`, `FollowerBuilder.lengthUnit(...)`, and `applyLengthUnit()` are gone. They changed Pedro’s internal unit system. This fork no longer does that.
-
-```java
-// prototype
-public static final LengthUnit LENGTH = LengthUnit.use(LengthUnit.CENTIMETERS);
-public static FollowerConstants followerConstants = new FollowerConstants().mass(10);
-new FollowerBuilder(followerConstants, hardwareMap).lengthUnit(LENGTH);
-
-// later prototype
-FollowerConstants.defaultsFor(LENGTH);
-new Pose(60.96, 0, 0); // was centimeters inside Pedro
-
-// current
-public static final PedroUnits UNITS = new PedroUnits(
-        LengthUnit.CENTIMETERS, MassUnit.KILOGRAMS, AngularUnit.RADIANS);
-public static FollowerConstants followerConstants = new FollowerConstants().mass(10);
-Follower follower = new FollowerBuilder(followerConstants, hardwareMap)
-        .setUnits(UNITS)
-        .build();
-Pose end = follower.pose(60.96, 0, 0); // centimeters, including getX()
-```
-
-Existing inch-based TeamCode that never calls `.setUnits(...)` does not need pose or path number changes.
-
 ## Backward compatibility
 
 * If you never call `.setUnits(...)`, existing `Pose` constructors and getters remain inches/radians.
