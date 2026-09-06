@@ -8,174 +8,241 @@ Upstream docs and tuning: [pedropathing.com](https://pedropathing.com/). Discord
 
 ## Why this fork exists
 
-Upstream Pedro treats poses, paths, and most tuners as **inches**. Pinpoint/OTOS can pick an FTC `DistanceUnit`, but drive-encoder constants, dashboard drawing, and Quickstart tuners still say inches.
+Upstream Pedro calculates in **inches**, **kilograms**, and **radians**. This fork adds a TeamCode-facing unit conversion layer so a team can enter and display values in their preferred units without changing Pedro’s internal math.
 
-This fork adds a selectable **follower length unit** so a team can run the whole follower in inches, centimeters, meters, or feet. Inch-authored Pedro defaults live in `LengthAnchors` and are generated for the selected configuration. Millimeters are **not** a selectable follower unit; they remain an internal hardware-boundary helper for devices such as OctoQuad.
+`.setUnits(...)` selects those interface units once per `FollowerBuilder`. Existing Pedro APIs keep their original canonical meanings.
 
-## Supported follower units
+## Canonical internal units
 
-Exactly:
+Pedro always calculates in:
 
-* `LengthUnit.INCHES`
-* `LengthUnit.CENTIMETERS`
-* `LengthUnit.METERS`
-* `LengthUnit.FEET`
+* Distance: inches
+* Velocity: inches per second
+* Acceleration: inches per second squared
+* Mass: kilograms
+* Angles: radians
+* Angular velocity: radians per second
+* Existing timeout/time units unchanged
 
-Millimeters may appear only as hardware-native measurements (`DistanceUnit.MM`, OctoQuad `*_MM` fields, `LengthUnit.toMillimeters` / `fromMillimeters`). They are not a `LengthUnit` enum constant.
+`.setUnits(...)` does **not** rescale PID coefficients, covariance, drivetrain defaults, path constraints, poses, or follower math.
+
+## Supported interface units
+
+Length: `INCHES`, `FEET`, `CENTIMETERS`, `METERS`
+
+Mass: `KILOGRAMS`, `POUNDS`
+
+Angles: `RADIANS`, `DEGREES` (`AngularUnit` in core, to avoid colliding with the FTC SDK `AngleUnit`)
+
+Millimeters are **not** a selectable interface unit. They may be used internally by hardware adapters such as OctoQuad.
+
+## Two API layers
+
+### Existing Pedro API (canonical)
+
+These keep their original meanings even after `.setUnits(...)`:
+
+```java
+new Pose(24, 48, Math.PI / 2); // 24 in, 48 in, π/2 rad
+constants.mass(10.65);         // kilograms
+constants.forwardZeroPowerAcceleration(-41.278); // in/s^2
+mecanumConstants.xVelocity(81.34); // in/s
+pose.getX();                   // inches
+pose.getHeading();             // radians
+```
+
+### Configured interface API
+
+New helpers on `FollowerBuilder`, `Follower`, and `PedroUnits` interpret numbers using the units selected once by `.setUnits(...)`. You do not repeat the unit on every call.
+
+```java
+Follower follower = new FollowerBuilder(constants, hardwareMap)
+        .setUnits(LengthUnit.FEET, MassUnit.POUNDS, AngularUnit.DEGREES)
+        .setMass(23.5)
+        .setStartingPose(2, 4, 90)
+        .pinpointLocalizer(pinpointConstants)
+        .mecanumDrivetrain(mecanumConstants)
+        .build();
+```
+
+Internally that becomes approximately 10.659 kg, 24 inches, 48 inches, and π/2 radians.
 
 ## Basic setup
 
-The selected unit belongs to the follower configuration. It is immutable after construction. Creating one follower cannot change another.
+If you never call `.setUnits(...)`, behavior matches upstream Pedro (inches, kilograms, radians):
 
 ```java
-import com.pedropathing.math.LengthUnit;
-import com.pedropathing.follower.FollowerConstants;
-import com.pedropathing.ftc.FollowerBuilder;
-
-public static final LengthUnit LENGTH = LengthUnit.CENTIMETERS;
-
-public static FollowerConstants followerConstants =
-        FollowerConstants.defaultsFor(LENGTH).mass(10);
-
-public static Follower createFollower(HardwareMap hardwareMap) {
-    return new FollowerBuilder(followerConstants, hardwareMap)
-            .lengthUnit(LENGTH)
-            // localizer and drivetrain configuration
-            .build();
-}
-```
-
-Call `.lengthUnit(...)` before configuring the localizer or drivetrain. If omitted, the builder uses `followerConstants.getLengthUnit()`.
-
-Then write poses in that unit. Do not pass a unit at every path or pose site:
-
-```java
-Pose start = new Pose(0, 0, 0);
-Pose end = new Pose(60.96, 0, 0); // one FTC tile, in centimeters
-Pose twoFeet = new Pose(2, 0, 0); // when LENGTH is FEET
-```
-
-Mass stays kilograms. Heading stays radians. Times stay in their existing units. Dimensionless coefficients are not rescaled.
-
-## Localizer examples
-
-Hardware devices keep their own unit. Conversion happens once inside the localizer.
-
-**Pinpoint, follower centimeters, Pinpoint inches**
-
-```java
-new FollowerBuilder(FollowerConstants.defaultsFor(LengthUnit.CENTIMETERS), hardwareMap)
-        .lengthUnit(LengthUnit.CENTIMETERS)
-        .pinpointLocalizer(new PinpointConstants().distanceUnit(DistanceUnit.INCH))
+Follower follower = new FollowerBuilder(constants, hardwareMap)
+        .pinpointLocalizer(pinpointConstants)
+        .mecanumDrivetrain(mecanumConstants)
         .build();
 ```
 
-**Pinpoint, follower feet, Pinpoint inches**
+Call `.setUnits(...)` immediately after constructing the builder, at most once:
 
 ```java
-new FollowerBuilder(FollowerConstants.defaultsFor(LengthUnit.FEET), hardwareMap)
-        .lengthUnit(LengthUnit.FEET)
-        .pinpointLocalizer(new PinpointConstants().distanceUnit(DistanceUnit.INCH))
+PedroUnits units = new PedroUnits(
+        LengthUnit.FEET,
+        MassUnit.POUNDS,
+        AngularUnit.DEGREES
+);
+
+Follower follower = new FollowerBuilder(constants, hardwareMap)
+        .setUnits(units)
         .build();
 ```
 
-Pinpoint position, velocity, `setPose()`, and `setX`/`setY` convert between inches and feet. Pod offsets and custom encoder resolution stay in Pinpoint's `distanceUnit`.
-
-**OTOS, follower feet, OTOS inches**
+Overloads:
 
 ```java
-new FollowerBuilder(FollowerConstants.defaultsFor(LengthUnit.FEET), hardwareMap)
-        .lengthUnit(LengthUnit.FEET)
+FollowerBuilder setUnits(PedroUnits units);
+
+FollowerBuilder setUnits(LengthUnit lengthUnit, MassUnit massUnit, AngularUnit angleUnit);
+
+FollowerBuilder setUnits(LengthUnit lengthUnit); // mass kg, angle rad
+
+FollowerBuilder setUnits(LengthUnit lengthUnit, AngularUnit angleUnit); // mass kg
+```
+
+`PedroUnits.DEFAULT` is inches, kilograms, and radians. Calling `.setUnits(PedroUnits.DEFAULT)` explicitly is valid. A second call throws `IllegalStateException`.
+
+## Configured pose construction and output
+
+```java
+Pose start = follower.pose(2, 4, 90);
+Pose target = follower.getUnits().pose(5, 3, 180);
+follower.setStartingPose(start);
+```
+
+Those `Pose` objects store canonical inches and radians, so they are safe to pass through existing Pedro path APIs.
+
+Do not put feet or degrees into a standard `Pose`. Configured output uses a distinct type:
+
+```java
+ConfiguredPose display = follower.getPoseInConfiguredUnits();
+double xFeet = display.x();
+double headingDeg = display.heading();
+
+double x = follower.getUnits().x(follower.getPose());
+ConfiguredPose same = follower.getUnits().fromInternalPose(follower.getPose());
+```
+
+`ConfiguredPose` is not a Pedro `Pose` and must not be passed into follower math.
+
+## Path constraints
+
+`PathConstraints` still stores inches per second, inches, and radians. Build them from configured units:
+
+```java
+PathConstraints constraints = follower.getUnits()
+        .pathConstraints()
+        .velocityConstraint(0.5)
+        .translationalConstraint(0.05)
+        .headingConstraint(2)
+        .build();
+```
+
+With feet/degrees configured, that produces an ordinary canonical `PathConstraints`. Creating one follower does not mutate `PathConstraints.defaultConstraints`.
+
+## Hardware units are independent
+
+`.setUnits(...)` does not overwrite Pinpoint `distanceUnit` or OTOS `linearUnit`.
+
+User-facing feet/degrees → Pedro inches/radians → hardware millimeters (or whatever the device is configured to use). Each boundary converts once.
+
+**Pinpoint in millimeters, user-facing feet**
+
+```java
+new FollowerBuilder(constants, hardwareMap)
+        .setUnits(LengthUnit.FEET, MassUnit.POUNDS, AngularUnit.DEGREES)
+        .pinpointLocalizer(new PinpointConstants().distanceUnit(DistanceUnit.MM))
+        .build();
+```
+
+Pod offsets stay in Pinpoint’s hardware unit.
+
+**OTOS in inches, user-facing centimeters**
+
+```java
+new FollowerBuilder(constants, hardwareMap)
+        .setUnits(LengthUnit.CENTIMETERS, AngularUnit.DEGREES)
         .OTOSLocalizer(new OTOSConstants().linearUnit(DistanceUnit.INCH))
         .build();
 ```
 
-OTOS position, velocity, and `setPose()` convert. The OTOS sensor offset stays in the OTOS linear unit.
+The OTOS sensor offset stays in the OTOS linear unit.
 
-**OctoQuad, follower feet, hardware millimeters**
+**OctoQuad, user-facing feet, hardware millimeters**
 
 ```java
-new FollowerBuilder(FollowerConstants.defaultsFor(LengthUnit.FEET), hardwareMap)
-        .lengthUnit(LengthUnit.FEET)
+new FollowerBuilder(constants, hardwareMap)
+        .setUnits(LengthUnit.FEET)
         .octoQuadLocalizer(octoQuadConstants, OctoQuadLocalizer.InitMode.INITIALIZE_OCTOQUAD)
         .build();
 ```
 
-OctoQuad ticks-per-mm and TCP offsets remain millimeters. Pose and velocity are converted to feet.
+OctoQuad ticks-per-mm and TCP offsets remain millimeters. Pose and velocity become Pedro inches.
 
-**Encoder localizer, centimeters per tick**
+Encoder multipliers remain **inches per tick**. Prefer the upstream names `forwardTicksToInches` / `strafeTicksToInches` / `turnTicksToInches`, or the clearer aliases `forwardInchesPerTick`, `strafeInchesPerTick`, and `turnRadiansPerTick`.
+
+## Centimeters, kilograms, and degrees
 
 ```java
-new DriveEncoderConstants()
-        .forwardTicksToDistance(0.05) // cm / tick
-        .strafeTicksToDistance(0.05)
-        .turnTicksToRadians(0.001)
-        .robotWidth(30)
-        .robotLength(35);
+Follower follower = new FollowerBuilder(new FollowerConstants().mass(10), hardwareMap)
+        .setUnits(LengthUnit.CENTIMETERS, AngularUnit.DEGREES)
+        .setStartingPose(60.96, 0, 90)
+        .build();
+Pose tile = follower.pose(60.96, 0, 0); // 24 inches internally
 ```
 
-Encoder multipliers are **selected follower unit per tick**. Robot width, length, and deadwheel pod offsets for encoder localizers are in the follower unit.
+## Panels / tuners
 
-## Feet behavior
+Pedro poses are already inches. Panels Field drawing uses those inches directly. Standard tuner distances remain inches internally. Telemetry may show configured units through `follower.getPoseInConfiguredUnits()`.
 
-FTC `DistanceUnit` has no foot. This fork does **not** treat `DistanceUnit.INCH` as feet.
+## Migration from the prototype
 
-A hardware adapter may use inches, centimeters, meters, or millimeters internally. It converts hardware results to feet before constructing Pedro poses, and converts follower feet back to the configured hardware unit for `setPosition` / `setPose` / dimensional hardware configuration.
-
-## Hardware unit independence
-
-`FollowerBuilder` does not overwrite Pinpoint `distanceUnit` or OTOS `linearUnit`. Caller-owned constants objects are not mutated to satisfy follower units. The builder copies drivetrain and follower constants when converting.
-
-## Path constraint semantics
-
-* `new PathConstraints(0.99, 100, 1, 1)` stores inch-authored Pedro velocity/translational defaults and is labeled inches.
-* `PathConstraints.defaultsFor(unit)` converts those inch defaults exactly once.
-* `PathConstraints.inUnit(unit, ...)` stores caller values already expressed in `unit` and will not convert them again.
-* `PathConstraints.defaultConstraints` remains the inch-authored upstream default. Unit-aware code does not mutate it.
-* Attaching constraints to a follower converts a **copy** using the stored source unit. Incompatible units are not guessed; the stored unit is the source.
-
-## Panels / Quickstart
-
-Panels Field remains inch-based. Convert follower poses and path points to inches only at the drawing boundary with `LengthDrawing.toInches(...)`. Do not pass converted poses back into follower or path logic.
-
-The Allsparks `FtcRobotController` TeamCode copy of Tuning uses `follower.getLengthUnit()` and `LengthDrawing`. Upstream Pedro Quickstart still hard-codes inches until those files are updated:
-
-* `TeamCode/.../pedroPathing/Constants.java` — `defaultsFor` + `FollowerBuilder.lengthUnit`
-* `TeamCode/.../pedroPathing/Tuning.java` — tuner distances via `LengthAnchors.of(inches, unit)` and Panels conversion via `LengthDrawing`
-
-This repository includes `SelectableUnitSetupExample` as the in-tree integration fixture. The library change alone does not make an unmodified upstream Quickstart unit-aware.
-
-## Backward compatibility
-
-* `new FollowerConstants()`, `new MecanumConstants()`, and `new PathConstraints(t, timeout, ...)` remain inch-based.
-* Inch-mode numeric defaults match upstream Pedro.
-* Deprecated encoder setters `forwardTicksToInches`, `strafeTicksToInches`, and `turnTicksToInches` still write the new fields. `turnTicksToInches` was always a heading scale; it is a historical alias for `turnTicksToRadians`.
-* Direct public field assignment to the old `*TicksToInches` **field names** is a breaking change. Use the new field names or the deprecated setters.
-* The prototype `LengthUnit.use(...)` / `LengthUnit.active()` global API has been removed. It was process-wide mutable state and is not safe for two followers.
-
-### Migration from the prototype global API
+The prototype `LengthUnit.use(...)` / `LengthUnit.active()` global API, `FollowerConstants.defaultsFor(...)`, `FollowerBuilder.lengthUnit(...)`, and `applyLengthUnit()` are gone. They changed Pedro’s internal unit system. This fork no longer does that.
 
 ```java
 // prototype
 public static final LengthUnit LENGTH = LengthUnit.use(LengthUnit.CENTIMETERS);
 public static FollowerConstants followerConstants = new FollowerConstants().mass(10);
+new FollowerBuilder(followerConstants, hardwareMap).lengthUnit(LENGTH);
+
+// later prototype
+FollowerConstants.defaultsFor(LENGTH);
+new Pose(60.96, 0, 0); // was centimeters inside Pedro
 
 // current
-public static final LengthUnit LENGTH = LengthUnit.CENTIMETERS;
-public static FollowerConstants followerConstants =
-        FollowerConstants.defaultsFor(LENGTH).mass(10);
+public static final PedroUnits UNITS = new PedroUnits(
+        LengthUnit.CENTIMETERS, MassUnit.KILOGRAMS, AngularUnit.RADIANS);
+public static FollowerConstants followerConstants = new FollowerConstants().mass(10);
+Follower follower = new FollowerBuilder(followerConstants, hardwareMap)
+        .setUnits(UNITS)
+        .build();
+Pose end = follower.pose(60.96, 0, 0); // centimeters in, inches stored
 ```
 
-### Migration from standard inch-based upstream Pedro
+Existing inch-based TeamCode that never calls `.setUnits(...)` does not need pose or path number changes.
 
-No pose or path number changes are required if you stay in inches. To switch units, generate defaults with `defaultsFor(unit)`, pass `.lengthUnit(unit)` on the builder, and rewrite poses in that unit.
+## Backward compatibility
+
+* Existing `Pose` constructors and getters remain inches/radians.
+* Existing mass setters remain kilograms.
+* Existing path constraints remain inches/radians.
+* Existing drivetrain constants remain inches per second.
+* Existing encoder fields remain inches per tick.
+* Hardware `DistanceUnit` settings still work and are not overwritten.
+* No global unit initialization is required.
+* Caller-owned constants objects are not rewritten unless you use configured builder setters, which copy first.
+
+`FollowerBuilder.pathConstraints(...)` does not call `PathConstraints.setDefaultConstraints(...)`, so constructing one follower cannot change another’s defaults.
 
 ## Known limitations
 
 * Encoder localizers still use process-wide static tick-to-distance fields (upstream pattern). Two encoder localizers in one process can overwrite those statics.
-* Kalman filters initialize variance to `1` (upstream). Covariance scaling keeps steady-state behavior equivalent; the first update still starts from that constant.
-* Direct assignment to removed `*TicksToInches` fields will not compile.
-* `Pose.mirror()` with no arguments still uses the upstream 141.5 inch number. Non-inch followers should call `pose.mirror(unit)` or `pose.mirror(unit.mirrorFieldLength())`.
+* Kalman filters initialize variance to `1` (upstream).
+* Configured path-builder numeric overloads are not added; create canonical `Pose` objects with `follower.pose(...)` and use existing path APIs.
 
 ## Upstream synchronization
 
@@ -184,7 +251,7 @@ git fetch upstream
 git merge upstream/main
 ```
 
-The `upstream` remote points at `Pedro-Pathing/PedroPathing`. Expect conflicts in `LengthUnit`, `LengthContext`, `FollowerConstants`, `PathConstraints`, `FollowerBuilder`, hardware localizers, and `PoseConverter`. AGP is 8.13.2 and `compileSdk` is 34 here so this tree can be an `includeBuild` of an FTC SDK 11.2 project; upstream remains 8.7.3 / compileSdk 30.
+The `upstream` remote points at `Pedro-Pathing/PedroPathing`. AGP is 8.13.2 and `compileSdk` is 34 here so this tree can be an `includeBuild` of an FTC SDK 11.2 project; upstream remains 8.7.3 / compileSdk 30.
 
 ## Build / composite build
 
