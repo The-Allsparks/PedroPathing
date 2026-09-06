@@ -3,8 +3,6 @@ package com.pedropathing.follower;
 import com.pedropathing.control.FilteredPIDFCoefficients;
 import com.pedropathing.control.PIDFCoefficients;
 import com.pedropathing.control.PredictiveBrakingCoefficients;
-import com.pedropathing.math.LengthAnchors;
-import com.pedropathing.math.LengthUnit;
 
 /**
  * This is the FollowerConstants class. It holds many constants and parameters for various parts of
@@ -102,7 +100,7 @@ public class FollowerConstants {
      * The limit at which the heading PIDF switches between the main and secondary drive PIDFs.
      * Default Value: 20
      */
-    public double drivePIDFSwitch = LengthAnchors.DRIVE_PIDF_SWITCH;
+    public double drivePIDFSwitch = 20;
 
     /**
      * Secondary drive PIDF coefficients.
@@ -173,7 +171,7 @@ public class FollowerConstants {
      * if the secondary PID is active.
      * Default Value: 3
      */
-    public double translationalPIDFSwitch = LengthAnchors.TRANSLATIONAL_PIDF_SWITCH;
+    public double translationalPIDFSwitch = 3;
 
     /**
      * Threshold that the turn and turnTo methods will be considered to be finished
@@ -186,7 +184,7 @@ public class FollowerConstants {
      * Centripetal force to power scaling
      * Default Value: 0.0005
      */
-    public double centripetalScaling = LengthAnchors.CENTRIPETAL_SCALING;
+    public double centripetalScaling = 0.0005;
 
     /**
      * This is the default value for the automatic hold end. If this is set to true, the Follower will
@@ -201,44 +199,37 @@ public class FollowerConstants {
      */
     public double mass = 10.65;
 
-    /**
-     * Length unit of dimensional fields on this object. Defaults are generated for this unit
-     * from {@link LengthAnchors}; fluent setters write values already expressed in this unit.
-     * Default Value: {@link LengthUnit#INCHES}
-     */
-    public LengthUnit lengthUnit = LengthUnit.INCHES;
-
-    /** Acceleration of the drivetrain when power is cut in the follower length unit/second^2 (should be negative)
+    /** Acceleration of the drivetrain when power is cut in inches/second^2 (should be negative)
      * if not negative, then the robot thinks that its going to go faster under 0 power
      *  Default Value: -34.62719
      * This value is found via 'ForwardZeroPowerAccelerationTuner'*/
-    public double forwardZeroPowerAcceleration = LengthAnchors.FORWARD_ZERO_POWER_ACCELERATION;
+    public double forwardZeroPowerAcceleration = -34.62719;
 
-    /** Acceleration of the drivetrain when power is cut in the follower length unit/second^2 (should be negative)
+    /** Acceleration of the drivetrain when power is cut in inches/second^2 (should be negative)
      * if not negative, then the robot thinks that its going to go faster under 0 power
      *  Default Value: -78.15554
      * This value is found via 'LateralZeroPowerAccelerationTuner'*/
-    public double lateralZeroPowerAcceleration = LengthAnchors.LATERAL_ZERO_POWER_ACCELERATION;
+    public double lateralZeroPowerAcceleration = -78.15554;
 
     /**
      * 'Drive Kalman Filter Model Covariance' (Q: Process noise covariance)
      * Controls prediction vs measurement trust, higher = faster response, lower = smoother motion.
      * Default Value: 6
      */
-    public double driveKalmanFilterModelCovariance = LengthAnchors.KALMAN_MODEL_COVARIANCE;
+    public double driveKalmanFilterModelCovariance = 6;
 
     /**
      * 'Drive Kalman Filter Data Covariance' (R: Measurement noise covariance)
      * Controls measurement accuracy/noise level, higher = ignore noisy data, lower = trust measurements more.
      * Default Value: 1
      */
-    public double driveKalmanFilterDataCovariance = LengthAnchors.KALMAN_DATA_COVARIANCE;
+    public double driveKalmanFilterDataCovariance = 1;
   
     /** The velocity threshold for stuck detection. If the robot's velocity is below this value,
      * the stuck detection timer will start.
      * Default Value: 1.0
      */
-    public double stuckVelocity = LengthAnchors.STUCK_VELOCITY;
+    public double stuckVelocity = 1.0;
 
     /**
      * If the t value is below this, the robot can't be considered stuck (still accelerating)
@@ -260,16 +251,6 @@ public class FollowerConstants {
 
     public FollowerConstants() {
         defaults();
-    }
-
-    /**
-     * Inch-authored Pedro defaults converted exactly once into {@code unit}.
-     * User-supplied tuned values should be set after this factory, already in {@code unit}.
-     */
-    public static FollowerConstants defaultsFor(LengthUnit unit) {
-        FollowerConstants constants = new FollowerConstants();
-        constants.convertTo(LengthUnit.requireNonNull(unit));
-        return constants;
     }
 
     public FollowerConstants translationalPIDFCoefficients(PIDFCoefficients translationalPIDFCoefficients) {
@@ -374,15 +355,6 @@ public class FollowerConstants {
     public FollowerConstants mass(double mass) {
         this.mass = mass;
         return this;
-    }
-
-    /**
-     * Convert dimensional defaults and previously set tunings from this object's stored unit into
-     * {@code lengthUnit}. Does not mutate process-wide state. Call this before setting tunings that
-     * are already in {@code lengthUnit}, or use {@link #defaultsFor(LengthUnit)}.
-     */
-    public FollowerConstants lengthUnit(LengthUnit lengthUnit) {
-        return convertTo(lengthUnit);
     }
 
     public FollowerConstants forwardZeroPowerAcceleration(double forwardZeroPowerAcceleration) {
@@ -600,109 +572,6 @@ public class FollowerConstants {
         this.mass = mass;
     }
 
-    public LengthUnit getLengthUnit() {
-        return lengthUnit;
-    }
-
-    public void setLengthUnit(LengthUnit lengthUnit) {
-        convertTo(lengthUnit);
-    }
-
-    /**
-     * Convert dimensional values from this object's stored unit into {@code newUnit}.
-     * Safe to call twice with the same unit. Mutates this object; prefer {@link #inUnit(LengthUnit)}
-     * when the caller must keep the original.
-     */
-    public FollowerConstants convertTo(LengthUnit newUnit) {
-        LengthUnit.requireNonNull(newUnit);
-        if (newUnit != this.lengthUnit) {
-            rescaleLengthQuantities(this.lengthUnit, newUnit);
-            this.lengthUnit = newUnit;
-        }
-        return this;
-    }
-
-    /**
-     * Return a copy whose dimensional values are expressed in {@code newUnit}. This object is not
-     * mutated.
-     */
-    public FollowerConstants inUnit(LengthUnit newUnit) {
-        return copy().convertTo(newUnit);
-    }
-
-    public FollowerConstants copy() {
-        FollowerConstants copy = new FollowerConstants();
-        copy.coefficientsTranslationalPIDF = coefficientsTranslationalPIDF.copy();
-        copy.integralTranslational = integralTranslational.copy();
-        copy.coefficientsHeadingPIDF = coefficientsHeadingPIDF.copy();
-        copy.coefficientsDrivePIDF = coefficientsDrivePIDF.copy();
-        copy.coefficientsSecondaryTranslationalPIDF = coefficientsSecondaryTranslationalPIDF.copy();
-        copy.integralSecondaryTranslational = integralSecondaryTranslational.copy();
-        copy.headingPIDFSwitch = headingPIDFSwitch;
-        copy.coefficientsSecondaryHeadingPIDF = coefficientsSecondaryHeadingPIDF.copy();
-        copy.drivePIDFSwitch = drivePIDFSwitch;
-        copy.coefficientsSecondaryDrivePIDF = coefficientsSecondaryDrivePIDF.copy();
-        copy.predictiveBrakingCoefficients = predictiveBrakingCoefficients.copy();
-        copy.usePredictiveBraking = usePredictiveBraking;
-        copy.holdPointTranslationalScaling = holdPointTranslationalScaling;
-        copy.holdPointHeadingScaling = holdPointHeadingScaling;
-        copy.BEZIER_CURVE_SEARCH_LIMIT = BEZIER_CURVE_SEARCH_LIMIT;
-        copy.useSecondaryTranslationalPIDF = useSecondaryTranslationalPIDF;
-        copy.useSecondaryHeadingPIDF = useSecondaryHeadingPIDF;
-        copy.useSecondaryDrivePIDF = useSecondaryDrivePIDF;
-        copy.translationalPIDFSwitch = translationalPIDFSwitch;
-        copy.turnHeadingErrorThreshold = turnHeadingErrorThreshold;
-        copy.centripetalScaling = centripetalScaling;
-        copy.automaticHoldEnd = automaticHoldEnd;
-        copy.mass = mass;
-        copy.lengthUnit = lengthUnit;
-        copy.forwardZeroPowerAcceleration = forwardZeroPowerAcceleration;
-        copy.lateralZeroPowerAcceleration = lateralZeroPowerAcceleration;
-        copy.driveKalmanFilterModelCovariance = driveKalmanFilterModelCovariance;
-        copy.driveKalmanFilterDataCovariance = driveKalmanFilterDataCovariance;
-        copy.stuckVelocity = stuckVelocity;
-        copy.stuckTValueLow = stuckTValueLow;
-        copy.stuckTValueHigh = stuckTValueHigh;
-        copy.stuckTimeout = stuckTimeout;
-        return copy;
-    }
-
-    private void rescaleLengthQuantities(LengthUnit from, LengthUnit to) {
-        drivePIDFSwitch = LengthUnit.rescale(drivePIDFSwitch, from, to);
-        translationalPIDFSwitch = LengthUnit.rescale(translationalPIDFSwitch, from, to);
-        stuckVelocity = LengthUnit.rescale(stuckVelocity, from, to);
-        forwardZeroPowerAcceleration = LengthUnit.rescale(forwardZeroPowerAcceleration, from, to);
-        lateralZeroPowerAcceleration = LengthUnit.rescale(lateralZeroPowerAcceleration, from, to);
-        centripetalScaling = LengthUnit.rescaleInverse(centripetalScaling, from, to);
-        driveKalmanFilterModelCovariance = LengthUnit.rescaleSquared(driveKalmanFilterModelCovariance, from, to);
-        driveKalmanFilterDataCovariance = LengthUnit.rescaleSquared(driveKalmanFilterDataCovariance, from, to);
-        rescaleLengthPid(coefficientsTranslationalPIDF, from, to);
-        rescaleLengthPid(integralTranslational, from, to);
-        rescaleLengthPid(coefficientsSecondaryTranslationalPIDF, from, to);
-        rescaleLengthPid(integralSecondaryTranslational, from, to);
-        rescaleLengthPid(coefficientsDrivePIDF, from, to);
-        rescaleLengthPid(coefficientsSecondaryDrivePIDF, from, to);
-        predictiveBrakingCoefficients.P = LengthUnit.rescaleInverse(predictiveBrakingCoefficients.P, from, to);
-        predictiveBrakingCoefficients.kQuadraticFriction = LengthUnit.rescaleInverse(predictiveBrakingCoefficients.kQuadraticFriction, from, to);
-    }
-
-    /**
-     * Scale P/I/D for a length- or velocity-error PID whose output is dimensionless motor power.
-     * F is multiplied by a dimensionless feedforward input ({@code 1} or {@code signum}) and is
-     * not rescaled. Filtered time constants are not rescaled.
-     */
-    private static void rescaleLengthPid(PIDFCoefficients coefficients, LengthUnit from, LengthUnit to) {
-        coefficients.P = LengthUnit.rescaleInverse(coefficients.P, from, to);
-        coefficients.I = LengthUnit.rescaleInverse(coefficients.I, from, to);
-        coefficients.D = LengthUnit.rescaleInverse(coefficients.D, from, to);
-    }
-
-    private static void rescaleLengthPid(FilteredPIDFCoefficients coefficients, LengthUnit from, LengthUnit to) {
-        coefficients.P = LengthUnit.rescaleInverse(coefficients.P, from, to);
-        coefficients.I = LengthUnit.rescaleInverse(coefficients.I, from, to);
-        coefficients.D = LengthUnit.rescaleInverse(coefficients.D, from, to);
-    }
-
     public double getForwardZeroPowerAcceleration() {
         return forwardZeroPowerAcceleration;
     }
@@ -735,6 +604,46 @@ public class FollowerConstants {
         this.driveKalmanFilterDataCovariance = driveKalmanFilterDataCovariance; 
     }
 
+    /**
+     * Return a deep copy. Used so configured-interface setters can apply converted values without
+     * mutating a caller-owned constants object.
+     */
+    public FollowerConstants copy() {
+        FollowerConstants copy = new FollowerConstants();
+        copy.coefficientsTranslationalPIDF = coefficientsTranslationalPIDF.copy();
+        copy.integralTranslational = integralTranslational.copy();
+        copy.coefficientsHeadingPIDF = coefficientsHeadingPIDF.copy();
+        copy.coefficientsDrivePIDF = coefficientsDrivePIDF.copy();
+        copy.coefficientsSecondaryTranslationalPIDF = coefficientsSecondaryTranslationalPIDF.copy();
+        copy.integralSecondaryTranslational = integralSecondaryTranslational.copy();
+        copy.headingPIDFSwitch = headingPIDFSwitch;
+        copy.coefficientsSecondaryHeadingPIDF = coefficientsSecondaryHeadingPIDF.copy();
+        copy.drivePIDFSwitch = drivePIDFSwitch;
+        copy.coefficientsSecondaryDrivePIDF = coefficientsSecondaryDrivePIDF.copy();
+        copy.predictiveBrakingCoefficients = predictiveBrakingCoefficients.copy();
+        copy.usePredictiveBraking = usePredictiveBraking;
+        copy.holdPointTranslationalScaling = holdPointTranslationalScaling;
+        copy.holdPointHeadingScaling = holdPointHeadingScaling;
+        copy.BEZIER_CURVE_SEARCH_LIMIT = BEZIER_CURVE_SEARCH_LIMIT;
+        copy.useSecondaryTranslationalPIDF = useSecondaryTranslationalPIDF;
+        copy.useSecondaryHeadingPIDF = useSecondaryHeadingPIDF;
+        copy.useSecondaryDrivePIDF = useSecondaryDrivePIDF;
+        copy.translationalPIDFSwitch = translationalPIDFSwitch;
+        copy.turnHeadingErrorThreshold = turnHeadingErrorThreshold;
+        copy.centripetalScaling = centripetalScaling;
+        copy.automaticHoldEnd = automaticHoldEnd;
+        copy.mass = mass;
+        copy.forwardZeroPowerAcceleration = forwardZeroPowerAcceleration;
+        copy.lateralZeroPowerAcceleration = lateralZeroPowerAcceleration;
+        copy.driveKalmanFilterModelCovariance = driveKalmanFilterModelCovariance;
+        copy.driveKalmanFilterDataCovariance = driveKalmanFilterDataCovariance;
+        copy.stuckVelocity = stuckVelocity;
+        copy.stuckTValueLow = stuckTValueLow;
+        copy.stuckTValueHigh = stuckTValueHigh;
+        copy.stuckTimeout = stuckTimeout;
+        return copy;
+    }
+
     public void defaults() {
         coefficientsTranslationalPIDF.setCoefficients(0.1, 0, 0, 0);
         integralTranslational.setCoefficients(0, 0, 0, 0.015);
@@ -749,7 +658,7 @@ public class FollowerConstants {
         headingPIDFSwitch = Math.PI / 20;
         coefficientsSecondaryHeadingPIDF.setCoefficients(5, 0, 0.08, 0.01);
 
-        drivePIDFSwitch = LengthAnchors.DRIVE_PIDF_SWITCH;
+        drivePIDFSwitch = 20;
         coefficientsSecondaryDrivePIDF.setCoefficients(0.02, 0, 0.000005, 0.6, 0.01);
         holdPointTranslationalScaling = 0.45;
         holdPointHeadingScaling = 0.35;
@@ -760,21 +669,20 @@ public class FollowerConstants {
         useSecondaryHeadingPIDF = false;
         useSecondaryDrivePIDF = false;
 
-        translationalPIDFSwitch = LengthAnchors.TRANSLATIONAL_PIDF_SWITCH;
+        translationalPIDFSwitch = 3;
         turnHeadingErrorThreshold = 0.01;
-        centripetalScaling = LengthAnchors.CENTRIPETAL_SCALING;
+        centripetalScaling = 0.0005;
 
         automaticHoldEnd = true;
         mass = 10.65;
-        lengthUnit = LengthUnit.INCHES;
 
-        forwardZeroPowerAcceleration = LengthAnchors.FORWARD_ZERO_POWER_ACCELERATION;
-        lateralZeroPowerAcceleration = LengthAnchors.LATERAL_ZERO_POWER_ACCELERATION;
+        forwardZeroPowerAcceleration = -41.278;
+        lateralZeroPowerAcceleration = -59.7819;
 
-        driveKalmanFilterModelCovariance = LengthAnchors.KALMAN_MODEL_COVARIANCE;
-        driveKalmanFilterDataCovariance = LengthAnchors.KALMAN_DATA_COVARIANCE;
+        driveKalmanFilterModelCovariance = 6;
+        driveKalmanFilterDataCovariance = 1;
       
-        stuckVelocity = LengthAnchors.STUCK_VELOCITY;
+        stuckVelocity = 1.0;
         stuckTValueLow = 0.1;
         stuckTValueHigh = 0.8;
         stuckTimeout = 500.0;

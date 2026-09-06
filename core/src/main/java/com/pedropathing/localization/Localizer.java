@@ -67,17 +67,17 @@ public interface Localizer {
 
     /**
      * This returns the multiplier applied to forward movement measurement to convert from encoder
-     * ticks to the follower length unit. This is found empirically through a tuner.
+     * ticks to inches. This is found empirically through a tuner.
      *
-     * @return returns the forward ticks to distance multiplier
+     * @return returns the forward ticks to inches multiplier
      */
     double getForwardMultiplier();
 
     /**
      * This returns the multiplier applied to lateral/strafe movement measurement to convert from
-     * encoder ticks to the follower length unit. This is found empirically through a tuner.
+     * encoder ticks to inches. This is found empirically through a tuner.
      *
-     * @return returns the lateral/strafe ticks to distance multiplier
+     * @return returns the lateral/strafe ticks to inches multiplier
      */
     double getLateralMultiplier();
 

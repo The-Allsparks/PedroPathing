@@ -1,20 +1,14 @@
 package com.pedropathing.math;
 
 /**
- * Selectable follower length unit for Pedro Pathing poses, paths, localizer constants, and tuners.
+ * User-interface length unit for Pedro Pathing.
  *
- * <p>The follower math is unit-agnostic: pick one unit and use it everywhere. Inches remain the
- * default so upstream Quickstart projects keep their existing numbers. Inch-authored defaults live
- * in {@link LengthAnchors} and are converted with {@link #rescale}, {@link #rescaleInverse}, and
- * {@link #rescaleSquared}.
+ * <p>Pedro always calculates internally in inches. This enum is used by {@link PedroUnits} to
+ * convert TeamCode-facing values into inches on input and back out of inches on output.
  *
- * <p>Millimeters are not a selectable follower unit. Hardware that reports millimeters (OctoQuad)
- * should use {@link #toMillimeters(double)} and {@link #fromMillimeters(double)} at the adapter
- * boundary.
- *
- * <p>The selected unit belongs to a {@link LengthContext} or follower configuration. This enum
- * has no process-wide mutable state: constructing one follower cannot change another, and loading
- * this class does not alter any unit system.
+ * <p>Millimeters are not a selectable interface unit. Hardware that reports millimeters (OctoQuad)
+ * should use {@link #inchesToMillimeters(double)} and {@link #millimetersToInches(double)} at the
+ * adapter boundary.
  *
  * @author The Allsparks - 36117
  */
@@ -66,22 +60,6 @@ public enum LengthUnit {
         return value / unitsPerInch;
     }
 
-    /**
-     * Convert a value in this unit into millimeters. Millimeters are a hardware-boundary unit,
-     * not a selectable follower unit.
-     */
-    public double toMillimeters(double value) {
-        return toInches(value) * MILLIMETERS_PER_INCH;
-    }
-
-    /**
-     * Convert millimeters into this unit. Millimeters are a hardware-boundary unit,
-     * not a selectable follower unit.
-     */
-    public double fromMillimeters(double millimeters) {
-        return fromInches(millimeters / MILLIMETERS_PER_INCH);
-    }
-
     /** Convert a value in this unit into {@code to}. */
     public double convert(double value, LengthUnit to) {
         return rescale(value, this, requireNonNull(to));
@@ -121,31 +99,14 @@ public enum LengthUnit {
         return to.fromInches(from.toInches(value));
     }
 
-    /**
-     * Convert a per-length quantity (PID P/I/D on a length or velocity error, centripetal scaling)
-     * from {@code from} into {@code to}.
-     */
-    public static double rescaleInverse(double value, LengthUnit from, LengthUnit to) {
-        from = requireNonNull(from);
-        to = requireNonNull(to);
-        if (from == to) {
-            return value;
-        }
-        return value * from.unitsPerInch / to.unitsPerInch;
+    /** Convert canonical inches into millimeters at a hardware boundary. */
+    public static double inchesToMillimeters(double inches) {
+        return inches * MILLIMETERS_PER_INCH;
     }
 
-    /**
-     * Convert a length-squared or velocity-squared quantity (Kalman covariance on a length or
-     * velocity error) from {@code from} into {@code to}.
-     */
-    public static double rescaleSquared(double value, LengthUnit from, LengthUnit to) {
-        from = requireNonNull(from);
-        to = requireNonNull(to);
-        if (from == to) {
-            return value;
-        }
-        double factor = to.unitsPerInch / from.unitsPerInch;
-        return value * factor * factor;
+    /** Convert hardware millimeters into canonical inches. */
+    public static double millimetersToInches(double millimeters) {
+        return millimeters / MILLIMETERS_PER_INCH;
     }
 
     public static LengthUnit requireNonNull(LengthUnit unit) {

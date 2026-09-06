@@ -12,7 +12,8 @@ import com.pedropathing.util.PoseHistory;
 import com.pedropathing.localization.Localizer;
 import com.pedropathing.geometry.Pose;
 import com.pedropathing.localization.PoseTracker;
-import com.pedropathing.math.LengthUnit;
+import com.pedropathing.math.ConfiguredPose;
+import com.pedropathing.math.PedroUnits;
 import com.pedropathing.geometry.BezierPoint;
 import com.pedropathing.math.MathFunctions;
 import com.pedropathing.paths.Path;
@@ -38,6 +39,7 @@ import java.util.Queue;
 public class Follower {
     public FollowerConstants constants;
     public PathConstraints pathConstraints;
+    private final PedroUnits units;
     public PoseTracker poseTracker;
     public ErrorCalculator errorCalculator;
     public VectorCalculator vectorCalculator;
@@ -75,8 +77,18 @@ public class Follower {
      * @param pathConstraints PathConstraints to use
      */
     public Follower(FollowerConstants constants, Localizer localizer, Drivetrain drivetrain, PathConstraints pathConstraints) {
+        this(constants, localizer, drivetrain, pathConstraints, PedroUnits.DEFAULT);
+    }
+
+    /**
+     * This creates a new Follower with an explicit user-interface unit configuration.
+     * Pedro still calculates in inches, kilograms, and radians; {@code units} is used only by
+     * configured-interface helpers.
+     */
+    public Follower(FollowerConstants constants, Localizer localizer, Drivetrain drivetrain, PathConstraints pathConstraints, PedroUnits units) {
         this.constants = constants;
-        this.pathConstraints = pathConstraints.inUnit(constants.getLengthUnit());
+        this.pathConstraints = pathConstraints;
+        this.units = PedroUnits.requireNonNull(units);
 
         poseTracker = new PoseTracker(localizer);
         errorCalculator = new ErrorCalculator(constants);
@@ -113,7 +125,7 @@ public class Follower {
      * @param drivetrain Drivetrain to use
      */
     public Follower(FollowerConstants constants, Localizer localizer, Drivetrain drivetrain) {
-        this(constants, localizer, drivetrain, PathConstraints.defaultsFor(constants.getLengthUnit()));
+        this(constants, localizer, drivetrain, PathConstraints.defaultConstraints);
     }
 
     public void setCentripetalScaling(double set) {
@@ -690,7 +702,7 @@ public class Follower {
      * @return returns a new PathBuilder object.
      */
     public PathBuilder pathBuilder() {
-        return new PathBuilder(this, pathConstraints);
+        return new PathBuilder(this);
     }
 
     /**
@@ -911,10 +923,34 @@ public class Follower {
     public PathConstraints getConstraints() { return pathConstraints; }
 
     /**
-     * The follower length unit taken from {@link FollowerConstants#getLengthUnit()}.
+     * The immutable user-interface unit configuration selected for this follower.
      */
-    public LengthUnit getLengthUnit() {
-        return constants.getLengthUnit();
+    public PedroUnits getUnits() {
+        return units;
+    }
+
+    /**
+     * Create a canonical Pedro {@link Pose} from coordinates in this follower's configured units.
+     * The returned pose stores inches and radians.
+     */
+    public Pose pose(double x, double y, double heading) {
+        return units.pose(x, y, heading);
+    }
+
+    /**
+     * Create a canonical Pedro {@link Pose} from coordinates in this follower's configured units.
+     * The returned pose stores inches and a heading of 0 radians.
+     */
+    public Pose pose(double x, double y) {
+        return units.pose(x, y);
+    }
+
+    /**
+     * Present the current pose in this follower's configured interface units.
+     * The result is not a Pedro {@link Pose} and must not be passed back into follower math.
+     */
+    public ConfiguredPose getPoseInConfiguredUnits() {
+        return units.fromInternalPose(getPose());
     }
 
     /**
@@ -927,9 +963,7 @@ public class Follower {
      * This sets the PathConstraints for the Follower.
      * @param pathConstraints the PathConstraints to set
      */
-    public void setConstraints(PathConstraints pathConstraints) {
-        this.pathConstraints = pathConstraints.inUnit(getLengthUnit());
-    }
+    public void setConstraints(PathConstraints pathConstraints) { this.pathConstraints = pathConstraints; }
 
     /**
      * This returns the Drivetrain used by the Follower.
@@ -1173,7 +1207,6 @@ public class Follower {
 
     private void setPath(Path path) {
         this.currentPath = path;
-        path.setConstraints(path.getConstraints().inUnit(getLengthUnit()));
         currentPath.init();
     }
 

@@ -42,7 +42,6 @@ public class OctoQuadLocalizer implements Localizer
 
     protected Pose currentVelocity = new Pose();
     protected Pose currentPose = new Pose();
-    protected final LengthUnit lengthUnit;
 
     protected DataSupplier externalDataSupplier = null;
 
@@ -100,13 +99,7 @@ public class OctoQuadLocalizer implements Localizer
      */
     public OctoQuadLocalizer(HardwareMap hardwareMap, OctoQuadConstants constants, InitMode initMode)
     {
-        this(hardwareMap, constants, initMode, LengthUnit.INCHES);
-    }
-
-    public OctoQuadLocalizer(HardwareMap hardwareMap, OctoQuadConstants constants, InitMode initMode, LengthUnit followerUnit)
-    {
         octoQuad = hardwareMap.get(OctoQuad.class, constants.hardwareMapName);
-        this.lengthUnit = LengthUnit.requireNonNull(followerUnit);
 
         // If we're not supposed to initialize the hardware, then we're done
         if (initMode == InitMode.ASSUME_EXTERNAL_INITIALIZATION)
@@ -205,8 +198,8 @@ public class OctoQuadLocalizer implements Localizer
     public void setPose(Pose setPose)
     {
         octoQuad.setLocalizerPose(
-                (int) lengthUnit.toMillimeters(setPose.getX()),
-                (int) lengthUnit.toMillimeters(setPose.getY()),
+                (int) LengthUnit.inchesToMillimeters(setPose.getX()),
+                (int) LengthUnit.inchesToMillimeters(setPose.getY()),
                 (float) AngleUnit.normalizeRadians(setPose.getHeading())
         );
 
@@ -238,14 +231,14 @@ public class OctoQuadLocalizer implements Localizer
         if (localizerData.isDataValid())
         {
             currentPose = new Pose(
-                    lengthUnit.fromMillimeters(localizerData.posX_mm),
-                    lengthUnit.fromMillimeters(localizerData.posY_mm),
+                    LengthUnit.millimetersToInches(localizerData.posX_mm),
+                    LengthUnit.millimetersToInches(localizerData.posY_mm),
                     localizerData.heading_rad
             );
 
             currentVelocity = new Pose(
-                    lengthUnit.fromMillimeters(localizerData.velX_mmS),
-                    lengthUnit.fromMillimeters(localizerData.velY_mmS),
+                    LengthUnit.millimetersToInches(localizerData.velX_mmS),
+                    LengthUnit.millimetersToInches(localizerData.velY_mmS),
                     localizerData.velHeading_radS
             );
 

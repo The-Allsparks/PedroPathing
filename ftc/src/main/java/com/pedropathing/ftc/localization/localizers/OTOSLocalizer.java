@@ -1,6 +1,6 @@
 package com.pedropathing.ftc.localization.localizers;
 
-import com.pedropathing.ftc.LengthUnits;
+import com.pedropathing.ftc.HardwareLengths;
 import com.pedropathing.ftc.localization.constants.OTOSConstants;
 import com.qualcomm.hardware.sparkfun.SparkFunOTOS;
 import com.qualcomm.robotcore.hardware.HardwareMap;
@@ -10,7 +10,6 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 
 import com.pedropathing.localization.Localizer;
 import com.pedropathing.geometry.Pose;
-import com.pedropathing.math.LengthUnit;
 import com.pedropathing.math.MathFunctions;
 import com.pedropathing.math.Vector;
 
@@ -26,7 +25,6 @@ public class OTOSLocalizer implements Localizer {
     private final SparkFunOTOS otos;
     private final DistanceUnit linearUnit;
     private final AngleUnit angleUnit;
-    private final LengthUnit followerUnit;
     private SparkFunOTOS.Pose2D otosPose;
     private SparkFunOTOS.Pose2D otosVel;
     private SparkFunOTOS.Pose2D otosAcc;
@@ -40,11 +38,7 @@ public class OTOSLocalizer implements Localizer {
      * @param map the HardwareMap
      */
     public OTOSLocalizer(HardwareMap map, OTOSConstants constants) {
-        this(map, constants, new Pose(), LengthUnit.INCHES);
-    }
-
-    public OTOSLocalizer(HardwareMap map, OTOSConstants constants, LengthUnit followerUnit) {
-        this(map, constants, new Pose(), followerUnit);
+        this(map, constants, new Pose());
     }
 
     /**
@@ -52,26 +46,13 @@ public class OTOSLocalizer implements Localizer {
      * specifying the starting pose of the localizer in inches.
      *
      * @param map the HardwareMap
-     * @param setStartPose the Pose to start from
+     * @param setStartPose the Pose to start from, in inches
      */
     public OTOSLocalizer(HardwareMap map, OTOSConstants constants, Pose setStartPose) {
-        this(map, constants, setStartPose, LengthUnit.INCHES);
-    }
-
-    /**
-     * This creates a new OTOSLocalizer from a HardwareMap and a Pose. OTOS hardware constants
-     * retain their own linear unit; conversion to {@code followerUnit} happens here.
-     *
-     * @param map the HardwareMap
-     * @param setStartPose the Pose to start from, in {@code followerUnit}
-     * @param followerUnit the follower length unit
-     */
-    public OTOSLocalizer(HardwareMap map, OTOSConstants constants, Pose setStartPose, LengthUnit followerUnit) {
 
         otos = map.get(SparkFunOTOS.class, constants.hardwareMapName);
         this.linearUnit = constants.linearUnit;
         this.angleUnit = constants.angleUnit;
-        this.followerUnit = LengthUnit.requireNonNull(followerUnit);
 
         otos.setLinearUnit(constants.linearUnit);
         otos.setAngularUnit(constants.angleUnit);
@@ -102,7 +83,7 @@ public class OTOSLocalizer implements Localizer {
      */
     @Override
     public Pose getPose() {
-        Pose pose = toFollowerPose(otosPose.x, otosPose.y, otosPose.h);
+        Pose pose = toInternalPose(otosPose.x, otosPose.y, otosPose.h);
 
         Vector vec = pose.getAsVector();
         vec.rotateVector(startPose.getHeading());
@@ -117,7 +98,7 @@ public class OTOSLocalizer implements Localizer {
      */
     @Override
     public Pose getVelocity() {
-        return toFollowerPose(otosVel.x, otosVel.y, otosVel.h);
+        return toInternalPose(otosVel.x, otosVel.y, otosVel.h);
     }
 
     /**
@@ -164,23 +145,23 @@ public class OTOSLocalizer implements Localizer {
     public void update() {
         otos.getPosVelAcc(otosPose,otosVel,otosAcc);
         // Thank you to GoldenElf58 of FTC Team 16657 for spotting a bug here; it was resolved by adding the turn direction.
-        totalHeading += MathFunctions.getSmallestAngleDifference(toFollowerHeading(otosPose.h), previousHeading) * MathFunctions.getTurnDirection(previousHeading, toFollowerHeading(otosPose.h));
-        previousHeading = toFollowerHeading(otosPose.h);
+        totalHeading += MathFunctions.getSmallestAngleDifference(toInternalHeading(otosPose.h), previousHeading) * MathFunctions.getTurnDirection(previousHeading, toInternalHeading(otosPose.h));
+        previousHeading = toInternalHeading(otosPose.h);
     }
 
-    private Pose toFollowerPose(double hardwareX, double hardwareY, double hardwareHeading) {
-        return new Pose(toFollowerLength(hardwareX), toFollowerLength(hardwareY), toFollowerHeading(hardwareHeading));
+    private Pose toInternalPose(double hardwareX, double hardwareY, double hardwareHeading) {
+        return new Pose(toInternalLength(hardwareX), toInternalLength(hardwareY), toInternalHeading(hardwareHeading));
     }
 
-    private double toFollowerLength(double hardwareLength) {
-        return LengthUnits.toFollower(hardwareLength, linearUnit, followerUnit);
+    private double toInternalLength(double hardwareLength) {
+        return HardwareLengths.toInches(hardwareLength, linearUnit);
     }
 
-    private double toHardwareLength(double followerLength) {
-        return LengthUnits.toHardware(followerLength, followerUnit, linearUnit);
+    private double toHardwareLength(double inches) {
+        return HardwareLengths.fromInches(inches, linearUnit);
     }
 
-    private double toFollowerHeading(double hardwareHeading) {
+    private double toInternalHeading(double hardwareHeading) {
         return AngleUnit.RADIANS.fromUnit(angleUnit, hardwareHeading);
     }
 
@@ -208,7 +189,7 @@ public class OTOSLocalizer implements Localizer {
 
     /**
      * This returns the multiplier applied to forward movement measurement to convert from OTOS
-     * ticks to the follower length unit. For the OTOS, this value is the same as the lateral multiplier.
+     * ticks to inches. For the OTOS, this value is the same as the lateral multiplier.
      * This is found empirically through a tuner.
      *
      * @return returns the forward ticks to distance multiplier
@@ -220,7 +201,7 @@ public class OTOSLocalizer implements Localizer {
 
     /**
      * This returns the multiplier applied to lateral/strafe movement measurement to convert from
-     * OTOS ticks to the follower length unit. For the OTOS, this value is the same as the forward multiplier.
+     * OTOS ticks to inches. For the OTOS, this value is the same as the forward multiplier.
      * This is found empirically through a tuner.
      *
      * @return returns the lateral/strafe ticks to distance multiplier

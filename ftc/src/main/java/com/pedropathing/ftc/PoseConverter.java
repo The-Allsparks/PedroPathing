@@ -2,48 +2,65 @@ package com.pedropathing.ftc;
 
 import com.pedropathing.geometry.CoordinateSystem;
 import com.pedropathing.geometry.Pose;
-import com.pedropathing.math.LengthUnit;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
 
+/**
+ * Converts between canonical Pedro {@link Pose} values (inches and radians) and FTC {@link Pose2D}
+ * values in an explicit hardware {@link DistanceUnit}.
+ *
+ * <p>Feet and other user-interface units are converted to inches before a pose reaches this class.
+ */
 public class PoseConverter {
 
     /**
-     * Converts a Pedro {@link Pose} to an FTC {@link Pose2D}.
+     * Converts a Pose to a Pose2D in the desired coordinate system.
      *
-     * @param pose the Pose object, with x/y in {@code followerUnit}
+     * @param pose the Pose object, with x/y in inches
      * @param desiredCoordinateSystem the desired coordinate system
-     * @param followerUnit the unit of the Pedro pose
-     * @param hardwareUnit the unit stored in the returned Pose2D
+     * @return a Pose2D object with the x and y coordinates in inches and the heading in radians
+     */
+    public static Pose2D poseToPose2D(Pose pose, CoordinateSystem desiredCoordinateSystem) {
+        return poseToPose2D(pose, desiredCoordinateSystem, DistanceUnit.INCH);
+    }
+
+    /**
+     * Converts a canonical Pedro {@link Pose} (inches, radians) to an FTC {@link Pose2D} in
+     * {@code hardwareDistanceUnit}.
      */
     public static Pose2D poseToPose2D(
             Pose pose,
             CoordinateSystem desiredCoordinateSystem,
-            LengthUnit followerUnit,
-            DistanceUnit hardwareUnit) {
+            DistanceUnit hardwareDistanceUnit) {
         Pose converted = pose.getAsCoordinateSystem(desiredCoordinateSystem);
-        double x = LengthUnits.toHardware(converted.getX(), followerUnit, hardwareUnit);
-        double y = LengthUnits.toHardware(converted.getY(), followerUnit, hardwareUnit);
-        return new Pose2D(hardwareUnit, x, y, AngleUnit.RADIANS, converted.getHeading());
+        double x = HardwareLengths.fromInches(converted.getX(), hardwareDistanceUnit);
+        double y = HardwareLengths.fromInches(converted.getY(), hardwareDistanceUnit);
+        return new Pose2D(hardwareDistanceUnit, x, y, AngleUnit.RADIANS, converted.getHeading());
     }
 
     /**
-     * Converts an FTC {@link Pose2D} to a Pedro {@link Pose}.
+     * Returns a pose from a Pose2D and a coordinate system.
      *
      * @param pose2d the Pose2D object
      * @param coordinateSystem the coordinate system
-     * @param hardwareUnit the unit to read from {@code pose2d}
-     * @param followerUnit the unit of the returned Pedro pose
+     * @return a Pose object with the x and y coordinates in inches and the heading in radians
+     */
+    public static Pose pose2DToPose(Pose2D pose2d, CoordinateSystem coordinateSystem) {
+        return pose2DToPose(pose2d, coordinateSystem, DistanceUnit.INCH);
+    }
+
+    /**
+     * Converts an FTC {@link Pose2D} in {@code hardwareDistanceUnit} to a canonical Pedro
+     * {@link Pose} (inches, radians).
      */
     public static Pose pose2DToPose(
             Pose2D pose2d,
             CoordinateSystem coordinateSystem,
-            DistanceUnit hardwareUnit,
-            LengthUnit followerUnit) {
-        double x = LengthUnits.toFollower(pose2d.getX(hardwareUnit), hardwareUnit, followerUnit);
-        double y = LengthUnits.toFollower(pose2d.getY(hardwareUnit), hardwareUnit, followerUnit);
+            DistanceUnit hardwareDistanceUnit) {
+        double x = HardwareLengths.toInches(pose2d.getX(hardwareDistanceUnit), hardwareDistanceUnit);
+        double y = HardwareLengths.toInches(pose2d.getY(hardwareDistanceUnit), hardwareDistanceUnit);
         return new Pose(x, y, pose2d.getHeading(AngleUnit.RADIANS), coordinateSystem);
     }
 }

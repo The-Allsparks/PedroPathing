@@ -1,8 +1,6 @@
 package com.pedropathing.ftc.drivetrains;
 
 import com.pedropathing.control.PIDFCoefficients;
-import com.pedropathing.math.LengthAnchors;
-import com.pedropathing.math.LengthUnit;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
@@ -16,8 +14,8 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 public class SwerveConstants {
 
     // Velocity units should match your odometry/follower configuration.
-    public double xVelocity = LengthAnchors.SWERVE_VELOCITY;
-    public double yVelocity = LengthAnchors.SWERVE_VELOCITY;
+    public double xVelocity = 80.0;
+    public double yVelocity = 80.0;
 
     public boolean useBrakeModeInTeleOp = false;
     public double maxPower = 1.0;
@@ -26,7 +24,6 @@ public class SwerveConstants {
     public double staticFrictionCoefficient = 0.1;
     // Input deadband for translational/rotational joystick values.
     public double epsilon = 0.05;
-    private LengthUnit appliedLengthUnit = LengthUnit.INCHES;
 
     public enum ZeroPowerBehavior {
         X_LOCK,
@@ -37,12 +34,6 @@ public class SwerveConstants {
 
     public SwerveConstants() {
         defaults();
-    }
-
-    public static SwerveConstants defaultsFor(LengthUnit unit) {
-        SwerveConstants constants = new SwerveConstants();
-        constants.convertTo(LengthUnit.requireNonNull(unit));
-        return constants;
     }
 
     /**
@@ -71,43 +62,6 @@ public class SwerveConstants {
     public SwerveConstants yVelocity(double yVelocity) {
         this.yVelocity = yVelocity;
         return this;
-    }
-
-    public SwerveConstants lengthUnit(LengthUnit unit) {
-        return convertTo(unit);
-    }
-
-    public SwerveConstants convertTo(LengthUnit unit) {
-        LengthUnit.requireNonNull(unit);
-        if (unit != appliedLengthUnit) {
-            xVelocity = LengthUnit.rescale(xVelocity, appliedLengthUnit, unit);
-            yVelocity = LengthUnit.rescale(yVelocity, appliedLengthUnit, unit);
-            appliedLengthUnit = unit;
-        }
-        return this;
-    }
-
-    public SwerveConstants inUnit(LengthUnit unit) {
-        return copy().convertTo(unit);
-    }
-
-    public LengthUnit getLengthUnit() {
-        return appliedLengthUnit;
-    }
-
-    public SwerveConstants copy() {
-        SwerveConstants copy = new SwerveConstants();
-        copy.xVelocity = xVelocity;
-        copy.yVelocity = yVelocity;
-        copy.appliedLengthUnit = appliedLengthUnit;
-        copy.useBrakeModeInTeleOp = useBrakeModeInTeleOp;
-        copy.maxPower = maxPower;
-        copy.useVoltageCompensation = useVoltageCompensation;
-        copy.nominalVoltage = nominalVoltage;
-        copy.staticFrictionCoefficient = staticFrictionCoefficient;
-        copy.epsilon = epsilon;
-        copy.zeroPowerBehavior = zeroPowerBehavior;
-        return copy;
     }
 
     /**
@@ -315,11 +269,29 @@ public class SwerveConstants {
     }
 
     /**
+     * Return a copy. Used so configured-interface velocity overrides do not mutate caller-owned
+     * constants.
+     */
+    public SwerveConstants copy() {
+        SwerveConstants copy = new SwerveConstants();
+        copy.xVelocity = xVelocity;
+        copy.yVelocity = yVelocity;
+        copy.useBrakeModeInTeleOp = useBrakeModeInTeleOp;
+        copy.maxPower = maxPower;
+        copy.useVoltageCompensation = useVoltageCompensation;
+        copy.nominalVoltage = nominalVoltage;
+        copy.staticFrictionCoefficient = staticFrictionCoefficient;
+        copy.epsilon = epsilon;
+        copy.zeroPowerBehavior = zeroPowerBehavior;
+        return copy;
+    }
+
+    /**
      * Resets all values to defaults.
      */
     public void defaults() {
-        xVelocity = LengthAnchors.SWERVE_VELOCITY;
-        yVelocity = LengthAnchors.SWERVE_VELOCITY;
+        xVelocity = 80.0;
+        yVelocity = 80.0;
         useBrakeModeInTeleOp = false;
         maxPower = 1.0;
         useVoltageCompensation = false;
@@ -327,6 +299,5 @@ public class SwerveConstants {
         staticFrictionCoefficient = 0.1;
         epsilon = 0.05;
         zeroPowerBehavior = ZeroPowerBehavior.X_LOCK;
-        appliedLengthUnit = LengthUnit.INCHES;
     }
 }

@@ -12,17 +12,17 @@ import com.pedropathing.ftc.localization.Encoder;
 
 public class ThreeWheelConstants {
 
-    /** The number of follower length units per tick of the encoder for forward movement
+    /** The number of inches per tick of the encoder for forward movement
      * Default Value: .001989436789 */
-    public double forwardTicksToDistance = .001989436789;
+    public double forwardTicksToInches = .001989436789;
 
-    /** The number of follower length units per tick of the encoder for lateral movement (strafing)
+    /** The number of inches per tick of the encoder for lateral movement (strafing)
      * Default Value: .001989436789 */
-    public double strafeTicksToDistance = .001989436789;
+    public double strafeTicksToInches = .001989436789;
 
-    /** Encoder ticks to radians for turning.
+    /** The number of inches per tick of the encoder for turning
      * Default Value: .001989436789 */
-    public double turnTicksToRadians = .001989436789;
+    public double turnTicksToInches = .001989436789;
 
     /** The Y Offset of the Left Encoder (Deadwheel) from the center of the robot
      * Default Value: 1 */
@@ -67,43 +67,49 @@ public class ThreeWheelConstants {
         defaults();
     }
 
-    public ThreeWheelConstants forwardTicksToDistance(double forwardTicksToDistance) {
-        this.forwardTicksToDistance = forwardTicksToDistance;
-        return this;
-    }
-
-    public ThreeWheelConstants strafeTicksToDistance(double strafeTicksToDistance) {
-        this.strafeTicksToDistance = strafeTicksToDistance;
-        return this;
-    }
-
-    public ThreeWheelConstants turnTicksToRadians(double turnTicksToRadians) {
-        this.turnTicksToRadians = turnTicksToRadians;
-        return this;
-    }
-
-    /** @deprecated use {@link #forwardTicksToDistance(double)} */
-    @Deprecated
     public ThreeWheelConstants forwardTicksToInches(double forwardTicksToInches) {
-        return forwardTicksToDistance(forwardTicksToInches);
+        this.forwardTicksToInches = forwardTicksToInches;
+        return this;
     }
 
-    /** @deprecated use {@link #strafeTicksToDistance(double)} */
-    @Deprecated
     public ThreeWheelConstants strafeTicksToInches(double strafeTicksToInches) {
-        return strafeTicksToDistance(strafeTicksToInches);
+        this.strafeTicksToInches = strafeTicksToInches;
+        return this;
     }
 
-    /** @deprecated use {@link #turnTicksToRadians(double)} */
-    @Deprecated
     public ThreeWheelConstants turnTicksToInches(double turnTicksToInches) {
-        return turnTicksToRadians(turnTicksToInches);
+        this.turnTicksToInches = turnTicksToInches;
+        return this;
     }
 
-    /** @deprecated use {@link #turnTicksToRadians(double)} */
+    public ThreeWheelConstants forwardInchesPerTick(double forwardInchesPerTick) {
+        return forwardTicksToInches(forwardInchesPerTick);
+    }
+
+    public ThreeWheelConstants strafeInchesPerTick(double strafeInchesPerTick) {
+        return strafeTicksToInches(strafeInchesPerTick);
+    }
+
+    public ThreeWheelConstants turnRadiansPerTick(double turnRadiansPerTick) {
+        return turnTicksToInches(turnRadiansPerTick);
+    }
+
+    /** @deprecated use {@link #forwardTicksToInches(double)} */
     @Deprecated
-    public ThreeWheelConstants turnTicksToDistance(double turnTicksToDistance) {
-        return turnTicksToRadians(turnTicksToDistance);
+    public ThreeWheelConstants forwardTicksToDistance(double forwardTicksToDistance) {
+        return forwardTicksToInches(forwardTicksToDistance);
+    }
+
+    /** @deprecated use {@link #strafeTicksToInches(double)} */
+    @Deprecated
+    public ThreeWheelConstants strafeTicksToDistance(double strafeTicksToDistance) {
+        return strafeTicksToInches(strafeTicksToDistance);
+    }
+
+    /** @deprecated use {@link #turnTicksToInches(double)} */
+    @Deprecated
+    public ThreeWheelConstants turnTicksToRadians(double turnTicksToRadians) {
+        return turnTicksToInches(turnTicksToRadians);
     }
 
     public ThreeWheelConstants leftPodY(double leftPodY) {
@@ -152,9 +158,9 @@ public class ThreeWheelConstants {
     }
 
     public void defaults() {
-        forwardTicksToDistance = .001989436789;
-        strafeTicksToDistance = .001989436789;
-        turnTicksToRadians = .001989436789;
+        forwardTicksToInches = .001989436789;
+        strafeTicksToInches = .001989436789;
+        turnTicksToInches = .001989436789;
         leftPodY = 1;
         rightPodY = -1;
         strafePodX = -2.5;

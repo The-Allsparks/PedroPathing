@@ -3,24 +3,12 @@ package com.pedropathing.ftc.localization.constants;
 import com.pedropathing.ftc.localization.Encoder;
 
 public class DriveEncoderConstants {
-    /**
-     * Encoder ticks to follower length unit for forward travel.
-     * Supply selected-follower-unit per tick, not inches per tick, when the follower is not in inches.
-     */
-    public double forwardTicksToDistance = 1;
-    /**
-     * Encoder ticks to follower length unit for strafe travel.
-     */
-    public double strafeTicksToDistance = 1;
-    /**
-     * Encoder ticks to radians for turning. The upstream name said inches; this
-     * value was always a heading scale.
-     */
-    public double turnTicksToRadians = 1;
 
-    /** Robot width in the selected follower length unit. */
+    public double forwardTicksToInches = 1;
+    public double strafeTicksToInches = 1;
+    public double turnTicksToInches = 1;
+
     public double robot_Width = 1;
-    /** Robot length in the selected follower length unit. */
     public double robot_Length = 1;
 
     public double leftFrontEncoderDirection = Encoder.REVERSE;
@@ -33,43 +21,55 @@ public class DriveEncoderConstants {
     public String rightFrontMotorName = "rightFront";
     public String rightRearMotorName = "rightRear";
 
-    public DriveEncoderConstants forwardTicksToDistance(double forwardTicksToDistance) {
-        this.forwardTicksToDistance = forwardTicksToDistance;
-        return this;
-    }
-
-    public DriveEncoderConstants strafeTicksToDistance(double strafeTicksToDistance) {
-        this.strafeTicksToDistance = strafeTicksToDistance;
-        return this;
-    }
-
-    public DriveEncoderConstants turnTicksToRadians(double turnTicksToRadians) {
-        this.turnTicksToRadians = turnTicksToRadians;
-        return this;
-    }
-
-    /** @deprecated use {@link #forwardTicksToDistance(double)} */
-    @Deprecated
     public DriveEncoderConstants forwardTicksToInches(double forwardTicksToInches) {
-        return forwardTicksToDistance(forwardTicksToInches);
+        this.forwardTicksToInches = forwardTicksToInches;
+        return this;
     }
 
-    /** @deprecated use {@link #strafeTicksToDistance(double)} */
-    @Deprecated
     public DriveEncoderConstants strafeTicksToInches(double strafeTicksToInches) {
-        return strafeTicksToDistance(strafeTicksToInches);
+        this.strafeTicksToInches = strafeTicksToInches;
+        return this;
     }
 
-    /** @deprecated use {@link #turnTicksToRadians(double)} */
-    @Deprecated
     public DriveEncoderConstants turnTicksToInches(double turnTicksToInches) {
-        return turnTicksToRadians(turnTicksToInches);
+        this.turnTicksToInches = turnTicksToInches;
+        return this;
     }
 
-    /** @deprecated use {@link #turnTicksToRadians(double)} */
+    public DriveEncoderConstants forwardInchesPerTick(double forwardInchesPerTick) {
+        return forwardTicksToInches(forwardInchesPerTick);
+    }
+
+    public DriveEncoderConstants strafeInchesPerTick(double strafeInchesPerTick) {
+        return strafeTicksToInches(strafeInchesPerTick);
+    }
+
+    public DriveEncoderConstants turnRadiansPerTick(double turnRadiansPerTick) {
+        return turnTicksToInches(turnRadiansPerTick);
+    }
+
+    /** @deprecated use {@link #forwardTicksToInches(double)} or {@link #forwardInchesPerTick(double)} */
+    @Deprecated
+    public DriveEncoderConstants forwardTicksToDistance(double forwardTicksToDistance) {
+        return forwardTicksToInches(forwardTicksToDistance);
+    }
+
+    /** @deprecated use {@link #strafeTicksToInches(double)} or {@link #strafeInchesPerTick(double)} */
+    @Deprecated
+    public DriveEncoderConstants strafeTicksToDistance(double strafeTicksToDistance) {
+        return strafeTicksToInches(strafeTicksToDistance);
+    }
+
+    /** @deprecated use {@link #turnTicksToInches(double)} or {@link #turnRadiansPerTick(double)} */
     @Deprecated
     public DriveEncoderConstants turnTicksToDistance(double turnTicksToDistance) {
-        return turnTicksToRadians(turnTicksToDistance);
+        return turnTicksToInches(turnTicksToDistance);
+    }
+
+    /** @deprecated use {@link #turnTicksToInches(double)} or {@link #turnRadiansPerTick(double)} */
+    @Deprecated
+    public DriveEncoderConstants turnTicksToRadians(double turnTicksToRadians) {
+        return turnTicksToInches(turnTicksToRadians);
     }
 
     public DriveEncoderConstants robotWidth(double robot_Width) {
@@ -123,9 +123,9 @@ public class DriveEncoderConstants {
     }
 
     public void defaults() {
-        forwardTicksToDistance = 1;
-        strafeTicksToDistance = 1;
-        turnTicksToRadians = 1;
+        forwardTicksToInches = 1;
+        strafeTicksToInches = 1;
+        turnTicksToInches = 1;
 
         robot_Width = 1;
         robot_Length = 1;

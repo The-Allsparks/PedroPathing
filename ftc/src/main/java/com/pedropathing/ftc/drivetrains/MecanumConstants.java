@@ -1,19 +1,17 @@
 package com.pedropathing.ftc.drivetrains;
 
 import com.pedropathing.geometry.Pose;
-import com.pedropathing.math.LengthAnchors;
-import com.pedropathing.math.LengthUnit;
 import com.pedropathing.math.Vector;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 
 public class MecanumConstants {
     /** The Forward Velocity of the Robot - Different for each robot
      *  Default Value: 81.34056 */
-    public  double xVelocity = LengthAnchors.MECANUM_X_VELOCITY;
+    public  double xVelocity = 81.34056;
 
     /** The Lateral Velocity of the Robot - Different for each robot
      *  Default Value: 65.43028 */
-    public  double yVelocity = LengthAnchors.MECANUM_Y_VELOCITY;
+    public  double yVelocity = 65.43028;
 
     private  double[] convertToPolar = Pose.cartesianToPolar(xVelocity, -yVelocity);
 
@@ -36,16 +34,9 @@ public class MecanumConstants {
     public  boolean useVoltageCompensation = false;
     public  double nominalVoltage = 12.0;
     public  double staticFrictionCoefficient = 0.1;
-    private LengthUnit appliedLengthUnit = LengthUnit.INCHES;
 
     public MecanumConstants() {
         defaults();
-    }
-
-    public static MecanumConstants defaultsFor(LengthUnit unit) {
-        MecanumConstants constants = new MecanumConstants();
-        constants.convertTo(LengthUnit.requireNonNull(unit));
-        return constants;
     }
 
     public MecanumConstants xVelocity(double xVelocity) {
@@ -61,40 +52,13 @@ public class MecanumConstants {
     }
 
     /**
-     * Convert velocity defaults and previously set tunings from this object's stored unit into
-     * {@code unit}. Does not mutate process-wide state.
+     * Return a copy. Used so configured-interface velocity overrides do not mutate caller-owned
+     * constants. Derived wheel vectors are recomputed from the copied velocities.
      */
-    public MecanumConstants lengthUnit(LengthUnit unit) {
-        return convertTo(unit);
-    }
-
-    public MecanumConstants convertTo(LengthUnit unit) {
-        LengthUnit.requireNonNull(unit);
-        if (unit != appliedLengthUnit) {
-            xVelocity = LengthUnit.rescale(xVelocity, appliedLengthUnit, unit);
-            yVelocity = LengthUnit.rescale(yVelocity, appliedLengthUnit, unit);
-            appliedLengthUnit = unit;
-            updateDriveVector();
-        }
-        return this;
-    }
-
-    /**
-     * Return a copy whose velocities are expressed in {@code unit}. This object is not mutated.
-     */
-    public MecanumConstants inUnit(LengthUnit unit) {
-        return copy().convertTo(unit);
-    }
-
-    public LengthUnit getLengthUnit() {
-        return appliedLengthUnit;
-    }
-
     public MecanumConstants copy() {
         MecanumConstants copy = new MecanumConstants();
         copy.xVelocity = xVelocity;
         copy.yVelocity = yVelocity;
-        copy.appliedLengthUnit = appliedLengthUnit;
         copy.maxPower = maxPower;
         copy.leftFrontMotorName = leftFrontMotorName;
         copy.leftRearMotorName = leftRearMotorName;
@@ -194,7 +158,6 @@ public class MecanumConstants {
 
     public void setXVelocity(double xVelocity) {
         this.xVelocity = xVelocity;
-        updateDriveVector();
     }
 
     public double getYVelocity() {
@@ -203,7 +166,6 @@ public class MecanumConstants {
 
     public void setYVelocity(double yVelocity) {
         this.yVelocity = yVelocity;
-        updateDriveVector();
     }
 
     public Vector getFrontLeftVector() {
@@ -307,8 +269,8 @@ public class MecanumConstants {
      * It is called in the constructor of the MecanumConstants class.
      */
     public void defaults() {
-        xVelocity = LengthAnchors.MECANUM_X_VELOCITY;
-        yVelocity = LengthAnchors.MECANUM_Y_VELOCITY;
+        xVelocity = 81.34056;
+        yVelocity = 65.43028;
         convertToPolar = Pose.cartesianToPolar(xVelocity, -yVelocity);
         frontLeftVector = new Vector(convertToPolar[0], convertToPolar[1]).normalize();
         maxPower = 1;
@@ -325,6 +287,5 @@ public class MecanumConstants {
         useVoltageCompensation = false;
         nominalVoltage = 12.0;
         staticFrictionCoefficient = 0.1;
-        appliedLengthUnit = LengthUnit.INCHES;
     }
 }
