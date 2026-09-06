@@ -3,6 +3,7 @@ package com.pedropathing.follower;
 import com.pedropathing.control.FilteredPIDFCoefficients;
 import com.pedropathing.control.PIDFCoefficients;
 import com.pedropathing.control.PredictiveBrakingCoefficients;
+import com.pedropathing.math.LengthUnit;
 
 /**
  * This is the FollowerConstants class. It holds many constants and parameters for various parts of
@@ -199,13 +200,19 @@ public class FollowerConstants {
      */
     public double mass = 10.65;
 
-    /** Acceleration of the drivetrain when power is cut in inches/second^2 (should be negative)
+    /**
+     * Length unit for poses, paths, localizer distances, and tuners.
+     * Default Value: {@link LengthUnit#INCHES}
+     */
+    public LengthUnit lengthUnit = LengthUnit.INCHES;
+
+    /** Acceleration of the drivetrain when power is cut in the follower length unit/second^2 (should be negative)
      * if not negative, then the robot thinks that its going to go faster under 0 power
      *  Default Value: -34.62719
      * This value is found via 'ForwardZeroPowerAccelerationTuner'*/
     public double forwardZeroPowerAcceleration = -34.62719;
 
-    /** Acceleration of the drivetrain when power is cut in inches/second^2 (should be negative)
+    /** Acceleration of the drivetrain when power is cut in the follower length unit/second^2 (should be negative)
      * if not negative, then the robot thinks that its going to go faster under 0 power
      *  Default Value: -78.15554
      * This value is found via 'LateralZeroPowerAccelerationTuner'*/
@@ -354,6 +361,12 @@ public class FollowerConstants {
 
     public FollowerConstants mass(double mass) {
         this.mass = mass;
+        return this;
+    }
+
+    public FollowerConstants lengthUnit(LengthUnit lengthUnit) {
+        this.lengthUnit = lengthUnit;
+        LengthUnit.setActive(lengthUnit);
         return this;
     }
 
@@ -572,6 +585,15 @@ public class FollowerConstants {
         this.mass = mass;
     }
 
+    public LengthUnit getLengthUnit() {
+        return lengthUnit;
+    }
+
+    public void setLengthUnit(LengthUnit lengthUnit) {
+        this.lengthUnit = lengthUnit;
+        LengthUnit.setActive(lengthUnit);
+    }
+
     public double getForwardZeroPowerAcceleration() {
         return forwardZeroPowerAcceleration;
     }
@@ -635,6 +657,7 @@ public class FollowerConstants {
 
         automaticHoldEnd = true;
         mass = 10.65;
+        lengthUnit = LengthUnit.INCHES;
 
         forwardZeroPowerAcceleration = -41.278;
         lateralZeroPowerAcceleration = -59.7819;

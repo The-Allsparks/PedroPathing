@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.pedropathing.ftc"
-    compileSdk = 30
+    compileSdk = 34
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8

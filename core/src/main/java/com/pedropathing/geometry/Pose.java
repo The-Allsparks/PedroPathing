@@ -1,5 +1,6 @@
 package com.pedropathing.geometry;
 
+import com.pedropathing.math.LengthUnit;
 import com.pedropathing.math.MathFunctions;
 import com.pedropathing.math.Vector;
 
@@ -298,11 +299,12 @@ public final class Pose implements FuturePose {
     }
 
     /**
-     * This mirrors this pose across the field (default of 141.5 inches in length + width) in Pedro coordinates. This will return a new Pose in Pedro coordinates.
+     * This mirrors this pose across the field in Pedro coordinates using the active
+     * {@link LengthUnit} field length (141.5 inches when the unit is inches).
      * @return the mirrored Pose.
      */
     public Pose mirror() {
-        return mirror(141.5);
+        return mirror(LengthUnit.active().mirrorFieldLength());
     }
 
     /**

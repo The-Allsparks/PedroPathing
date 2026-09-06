@@ -18,6 +18,7 @@ import com.pedropathing.ftc.localization.localizers.ThreeWheelIMULocalizer;
 import com.pedropathing.ftc.localization.localizers.ThreeWheelLocalizer;
 import com.pedropathing.ftc.localization.localizers.TwoWheelLocalizer;
 import com.pedropathing.localization.Localizer;
+import com.pedropathing.math.LengthUnit;
 import com.pedropathing.paths.PathConstraints;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
@@ -37,6 +38,7 @@ public class FollowerBuilder {
         this.constants = constants;
         this.hardwareMap = hardwareMap;
         constraints = PathConstraints.defaultConstraints;
+        LengthUnit.setActive(constants.lengthUnit);
     }
 
     public FollowerBuilder setLocalizer(Localizer localizer) {
@@ -53,10 +55,12 @@ public class FollowerBuilder {
     }
 
     public FollowerBuilder OTOSLocalizer(OTOSConstants lConstants) {
+        lConstants.linearUnit(LengthUnits.toFtc(constants.lengthUnit));
         return setLocalizer(new OTOSLocalizer(hardwareMap, lConstants));
     }
 
     public FollowerBuilder pinpointLocalizer(PinpointConstants lConstants) {
+        lConstants.distanceUnit(LengthUnits.toFtc(constants.lengthUnit));
         return setLocalizer(new PinpointLocalizer(hardwareMap, lConstants));
     }
 

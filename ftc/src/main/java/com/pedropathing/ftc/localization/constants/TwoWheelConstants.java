@@ -16,11 +16,11 @@ import com.qualcomm.robotcore.hardware.IMU;
 
 public class TwoWheelConstants {
 
-    /** The number of inches per tick of the encoder for forward movement
+    /** The number of follower length units per tick of the encoder for forward movement
      * Default Value: .001989436789 */
     public double forwardTicksToInches = .001989436789;
 
-    /** The number of inches per tick of the encoder for lateral movement (strafing)
+    /** The number of follower length units per tick of the encoder for lateral movement (strafing)
      * Default Value: .001989436789 */
     public double strafeTicksToInches = .001989436789;
 
@@ -76,6 +76,14 @@ public class TwoWheelConstants {
     public TwoWheelConstants strafeTicksToInches(double strafeTicksToInches) {
         this.strafeTicksToInches = strafeTicksToInches;
         return this;
+    }
+
+    public TwoWheelConstants forwardTicksToDistance(double forwardTicksToDistance) {
+        return forwardTicksToInches(forwardTicksToDistance);
+    }
+
+    public TwoWheelConstants strafeTicksToDistance(double strafeTicksToDistance) {
+        return strafeTicksToInches(strafeTicksToDistance);
     }
 
     public TwoWheelConstants forwardPodY(double forwardPodY) {

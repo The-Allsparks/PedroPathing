@@ -3,7 +3,10 @@ package com.pedropathing.ftc.localization.constants;
 import com.pedropathing.ftc.localization.Encoder;
 
 public class DriveEncoderConstants {
-
+    /**
+     * Ticks to follower length unit per encoder tick (inches unless
+     * {@code FollowerConstants.lengthUnit} is changed).
+     */
     public double forwardTicksToInches = 1;
     public double strafeTicksToInches = 1;
     public double turnTicksToInches = 1;
@@ -34,6 +37,18 @@ public class DriveEncoderConstants {
     public DriveEncoderConstants turnTicksToInches(double turnTicksToInches) {
         this.turnTicksToInches = turnTicksToInches;
         return this;
+    }
+
+    public DriveEncoderConstants forwardTicksToDistance(double forwardTicksToDistance) {
+        return forwardTicksToInches(forwardTicksToDistance);
+    }
+
+    public DriveEncoderConstants strafeTicksToDistance(double strafeTicksToDistance) {
+        return strafeTicksToInches(strafeTicksToDistance);
+    }
+
+    public DriveEncoderConstants turnTicksToDistance(double turnTicksToDistance) {
+        return turnTicksToInches(turnTicksToDistance);
     }
 
     public DriveEncoderConstants robotWidth(double robot_Width) {

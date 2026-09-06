@@ -13,6 +13,7 @@ import com.pedropathing.localization.Localizer;
 import com.pedropathing.geometry.Pose;
 import com.pedropathing.localization.PoseTracker;
 import com.pedropathing.geometry.BezierPoint;
+import com.pedropathing.math.LengthUnit;
 import com.pedropathing.math.MathFunctions;
 import com.pedropathing.paths.Path;
 import com.pedropathing.paths.PathBuilder;
@@ -76,6 +77,7 @@ public class Follower {
     public Follower(FollowerConstants constants, Localizer localizer, Drivetrain drivetrain, PathConstraints pathConstraints) {
         this.constants = constants;
         this.pathConstraints = pathConstraints;
+        LengthUnit.setActive(constants.lengthUnit);
 
         poseTracker = new PoseTracker(localizer);
         errorCalculator = new ErrorCalculator(constants);

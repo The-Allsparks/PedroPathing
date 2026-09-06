@@ -3,7 +3,7 @@ package com.pedropathing.paths;
 public final class PathConstraints {
     /**
      * When the robot is at the end of its current Path or PathChain and the velocity goes below
-     * this value, then end the Path. This is in inches/second.
+     * this value, then end the Path. This is in follower length units/second.
      * This can be custom set for each Path.
      * Default Value: 0.1
      */
@@ -11,7 +11,7 @@ public final class PathConstraints {
 
     /**
      * When the robot is at the end of its current Path or PathChain and the translational error
-     * goes below this value, then end the Path. This is in inches.
+     * goes below this value, then end the Path. This is in follower length units.
      * This can be custom set for each Path.
      * Default Value: 0.1
      */

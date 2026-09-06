@@ -1,58 +1,62 @@
-# Welcome to the Official Pedro Pathing Library Repository 
+# Pedro Pathing (Allsparks fork)
 
-Follow the steps on our [website](https://pedropathing.com/) to setup your project and tune!  
-Feel free to reach out on the [Offical Pedro Pathing Discord Server](https://discord.gg/2GfC4qBP5s)!
+Fork of [Pedro-Pathing/PedroPathing](https://github.com/Pedro-Pathing/PedroPathing) used by **[The Allsparks](https://github.com/The-Allsparks)** (FTC Team **36117**).
 
-<!--
----
+Upstream docs and tuning: [pedropathing.com](https://pedropathing.com/). Discord: [Pedro Pathing](https://discord.gg/2GfC4qBP5s).
 
-# Release History
+> **Disclaimer:** This is a community fork. It is **not** affiliated with or endorsed by Pedro Pathing, FIRST, or other referenced vendors. Keep the BSD 3-Clause license. Merge upstream `main` regularly.
 
-## v1.0.3
+## Why this fork exists
 
-Library: https://github.com/Pedro-Pathing/PedroPathing/releases/tag/v1.0.3
-Quickstart: https://github.com/Pedro-Pathing/Quickstart/releases/tag/v1.0.3
+Upstream Pedro treats poses, paths, and most tuners as **inches**. Pinpoint/OTOS can pick an FTC `DistanceUnit`, but drive-encoder constants, dashboard drawing, and Quickstart tuners still say inches.
 
-- Fixed a  bug that caused follower constants to be updated by user input AFTER follower was already created, causing hardwareMap issues.
-- Removed 2 Parameters from Follower and PoseUpdater (two classes), now you have to call `Constants.setConstants(FConstants.class, LConstants.class);` before initalizing the Follower.
-- Added Power Caching
+This fork adds a selectable **length unit** so a team can run the whole follower in inches, centimeters, millimeters, or meters without converting at the TeamCode boundary.
 
-----------
+Android Gradle Plugin is **8.13.2** (same as FTC SDK 11.2) so this tree can be an `includeBuild` of an FtcRobotController project. Upstream remains 8.7.3; expect a merge conflict there.
 
-## v1.0.2
+## Selecting a unit
 
-Library: https://github.com/Pedro-Pathing/PedroPathing/releases/tag/v1.0.2
-Quickstart: https://github.com/Pedro-Pathing/Quickstart/releases/tag/v1.0.2
+Inches remain the default. To use centimeters:
 
-- Fixed a bug that causes the left motors to always be reversed 
-- Fixed a bug that would cause driveLeftVector to be always the default value
-- Added a debug method to ConstantsUser.java
-- Fixed the spelling of `FollowerConstants.useBreakModeInTeleOp` to `FollowerConstants.useBrakeModeInTeleOp`
+```java
+import com.pedropathing.math.LengthUnit;
 
-----------
+public static FollowerConstants followerConstants =
+        new FollowerConstants()
+                .mass(10)
+                .lengthUnit(LengthUnit.CENTIMETERS);
+```
 
-## v1.0.1
+Then write poses, path distances, robot size, and encoder multipliers in that unit:
 
-Library: https://github.com/Pedro-Pathing/PedroPathing/releases/tag/v1.0.1
-Quickstart: https://github.com/Pedro-Pathing/Quickstart/releases/tag/v1.0.1
+```java
+Pose start = new Pose(0, 0, 0);
+Pose end = new Pose(60.96, 0, 0); // one FTC tile, in centimeters
+```
 
-Add `FollowerConstants.useBreakModeInTeleOp` - It allows you to use brake mode for your drivetrain motors instead of float during teleop.
+`FollowerBuilder` copies the follower unit onto Pinpoint `distanceUnit` and OTOS `linearUnit`. Encoder tick multipliers (`forwardTicksToInches` and the `forwardTicksToDistance` aliases) are “ticks to the selected unit,” not always inches.
 
-----------
+Mass stays kilograms. Heading stays radians.
 
-## v1.0.0
+## Panels field overlay
 
-Library: https://github.com/Pedro-Pathing/PedroPathing/releases/tag/v1.0.0
-Quickstart: https://github.com/Pedro-Pathing/Quickstart/releases/tag/v1.0.0
+Panels Field is still inch-based. TeamCode drawing should convert with `LengthUnit.toInches` before calling `panelsField.moveCursor`. The BumbleBee Tuning copy in `FtcRobotController` does this.
 
+## Syncing upstream
 
-The first release of Pedro Pathing in its library form.
+```bash
+git fetch upstream
+git merge upstream/main
+```
 
-Follow the instructions on the [website ](https://pedropathing.com/) to setup your project.
+The `upstream` remote points at `Pedro-Pathing/PedroPathing`. Resolve conflicts in `LengthUnit`, `FollowerConstants.lengthUnit`, and hardware localizers first.
 
-The Official Quickstart: https://github.com/Pedro-Pathing/Quickstart/
+## Install
 
-----------
+Keep using Maven coordinates `com.pedropathing:ftc` so this stays a drop-in substitute. From an Allsparks FTC project:
 
+```gradle
+includeBuild('../PedroPathing')
+```
 
-
+and the existing `implementation 'com.pedropathing:ftc:2.1.2'` line. Composite build replaces the Maven artifact with this fork.

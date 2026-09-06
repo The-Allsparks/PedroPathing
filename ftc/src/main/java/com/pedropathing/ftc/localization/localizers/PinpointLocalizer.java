@@ -55,6 +55,7 @@ public class PinpointLocalizer implements Localizer {
      */
     @SuppressLint("NewApi")
     public PinpointLocalizer(HardwareMap map, PinpointConstants constants, Pose setStartPose){
+        this.constants = constants;
 
         odo = map.get(GoBildaPinpointDriver.class,constants.hardwareMapName);
         setOffsets(constants.forwardPodY, constants.strafePodX, constants.distanceUnit);
@@ -76,7 +77,6 @@ public class PinpointLocalizer implements Localizer {
         pinpointPose = startPose;
         currentVelocity = new Pose();
         previousHeading = setStartPose.getHeading();
-        this.constants = constants;
     }
 
     /**
@@ -134,7 +134,7 @@ public class PinpointLocalizer implements Localizer {
      */
     @Override
     public void setPose(Pose setPose) {
-        odo.setPosition(PoseConverter.poseToPose2D(setPose, PedroCoordinates.INSTANCE));
+        odo.setPosition(PoseConverter.poseToPose2D(setPose, PedroCoordinates.INSTANCE, constants.distanceUnit));
         pinpointPose = setPose;
         previousHeading = setPose.getHeading();
     }
@@ -145,11 +145,11 @@ public class PinpointLocalizer implements Localizer {
     @Override
     public void update() {
         odo.update();
-        Pose currentPinpointPose = PoseConverter.pose2DToPose(odo.getPosition(), PedroCoordinates.INSTANCE);
+        Pose currentPinpointPose = PoseConverter.pose2DToPose(odo.getPosition(), PedroCoordinates.INSTANCE, constants.distanceUnit);
         // Thank you to GoldenElf58 of FTC Team 16657 for spotting a bug here; it was resolved by adding the turn direction.
         totalHeading += MathFunctions.getSmallestAngleDifference(currentPinpointPose.getHeading(), previousHeading) * MathFunctions.getTurnDirection(previousHeading, currentPinpointPose.getHeading());
         previousHeading = currentPinpointPose.getHeading();
-        currentVelocity = new Pose(odo.getVelX(DistanceUnit.INCH), odo.getVelY(DistanceUnit.INCH), odo.getHeadingVelocity(AngleUnit.RADIANS.getUnnormalized()));
+        currentVelocity = new Pose(odo.getVelX(constants.distanceUnit), odo.getVelY(constants.distanceUnit), odo.getHeadingVelocity(AngleUnit.RADIANS.getUnnormalized()));
         pinpointPose = currentPinpointPose;
     }
 
@@ -192,7 +192,7 @@ public class PinpointLocalizer implements Localizer {
     }
 
     /**
-     * This sets the offsets and converts inches to millimeters
+     * This sets the offsets in the Pinpoint's configured {@link DistanceUnit}.
      * @param xOffset How far to the side from the center of the robot is the x-pod? Use positive values if it's to the left and negative if it's to the right.
      * @param yOffset How far forward from the center of the robot is the y-pod? Use positive values if it's forward and negative if it's to the back.
      * @param unit The units that the measurements are given in

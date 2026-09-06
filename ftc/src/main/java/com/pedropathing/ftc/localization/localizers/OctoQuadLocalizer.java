@@ -22,10 +22,10 @@
 package com.pedropathing.ftc.localization.localizers;
 
 import com.pedropathing.ftc.localization.constants.OctoQuadConstants;
+import com.pedropathing.math.LengthUnit;
 import com.qualcomm.hardware.digitalchickenlabs.OctoQuad;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
-import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import com.pedropathing.localization.Localizer;
 import com.pedropathing.geometry.Pose;
 import com.pedropathing.math.Vector;
@@ -42,6 +42,7 @@ public class OctoQuadLocalizer implements Localizer
 
     protected Pose currentVelocity = new Pose();
     protected Pose currentPose = new Pose();
+    protected final LengthUnit lengthUnit;
 
     protected DataSupplier externalDataSupplier = null;
 
@@ -100,6 +101,7 @@ public class OctoQuadLocalizer implements Localizer
     public OctoQuadLocalizer(HardwareMap hardwareMap, OctoQuadConstants constants, InitMode initMode)
     {
         octoQuad = hardwareMap.get(OctoQuad.class, constants.hardwareMapName);
+        this.lengthUnit = LengthUnit.active();
 
         // If we're not supposed to initialize the hardware, then we're done
         if (initMode == InitMode.ASSUME_EXTERNAL_INITIALIZATION)
@@ -198,8 +200,8 @@ public class OctoQuadLocalizer implements Localizer
     public void setPose(Pose setPose)
     {
         octoQuad.setLocalizerPose(
-                (int) DistanceUnit.INCH.toMm(setPose.getX()),
-                (int) DistanceUnit.INCH.toMm(setPose.getY()),
+                (int) lengthUnit.toMillimeters(setPose.getX()),
+                (int) lengthUnit.toMillimeters(setPose.getY()),
                 (float) AngleUnit.normalizeRadians(setPose.getHeading())
         );
 
@@ -231,14 +233,14 @@ public class OctoQuadLocalizer implements Localizer
         if (localizerData.isDataValid())
         {
             currentPose = new Pose(
-                    DistanceUnit.MM.toInches(localizerData.posX_mm),
-                    DistanceUnit.MM.toInches(localizerData.posY_mm),
+                    lengthUnit.fromMillimeters(localizerData.posX_mm),
+                    lengthUnit.fromMillimeters(localizerData.posY_mm),
                     localizerData.heading_rad
             );
 
             currentVelocity = new Pose(
-                    DistanceUnit.MM.toInches(localizerData.velX_mmS),
-                    DistanceUnit.MM.toInches(localizerData.velY_mmS),
+                    lengthUnit.fromMillimeters(localizerData.velX_mmS),
+                    lengthUnit.fromMillimeters(localizerData.velY_mmS),
                     localizerData.velHeading_radS
             );
 

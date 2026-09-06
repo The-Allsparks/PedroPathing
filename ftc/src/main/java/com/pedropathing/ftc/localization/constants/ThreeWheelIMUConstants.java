@@ -14,15 +14,15 @@ import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 
 public class ThreeWheelIMUConstants {
 
-    /** The number of inches per tick of the encoder for forward movement
+    /** The number of follower length units per tick of the encoder for forward movement
      * Default Value: .001989436789 */
     public double forwardTicksToInches = .001989436789;
 
-    /** The number of inches per tick of the encoder for lateral movement (strafing)
+    /** The number of follower length units per tick of the encoder for lateral movement (strafing)
      * Default Value: .001989436789 */
     public double strafeTicksToInches = .001989436789;
 
-    /** The number of inches per tick of the encoder for turning
+    /** The number of follower length units per tick of the encoder for turning
      * Default Value: .001989436789 */
     public double turnTicksToInches = .001989436789;
 
@@ -95,6 +95,18 @@ public class ThreeWheelIMUConstants {
     public ThreeWheelIMUConstants turnTicksToInches(double turnTicksToInches) {
         this.turnTicksToInches = turnTicksToInches;
         return this;
+    }
+
+    public ThreeWheelIMUConstants forwardTicksToDistance(double forwardTicksToDistance) {
+        return forwardTicksToInches(forwardTicksToDistance);
+    }
+
+    public ThreeWheelIMUConstants strafeTicksToDistance(double strafeTicksToDistance) {
+        return strafeTicksToInches(strafeTicksToDistance);
+    }
+
+    public ThreeWheelIMUConstants turnTicksToDistance(double turnTicksToDistance) {
+        return turnTicksToInches(turnTicksToDistance);
     }
 
     public ThreeWheelIMUConstants leftPodY(double leftPodY) {
