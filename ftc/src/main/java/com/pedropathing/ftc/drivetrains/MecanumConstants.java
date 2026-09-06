@@ -1,17 +1,19 @@
 package com.pedropathing.ftc.drivetrains;
 
 import com.pedropathing.geometry.Pose;
+import com.pedropathing.math.LengthAnchors;
+import com.pedropathing.math.LengthUnit;
 import com.pedropathing.math.Vector;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 
 public class MecanumConstants {
     /** The Forward Velocity of the Robot - Different for each robot
      *  Default Value: 81.34056 */
-    public  double xVelocity = 81.34056;
+    public  double xVelocity = LengthAnchors.MECANUM_X_VELOCITY;
 
     /** The Lateral Velocity of the Robot - Different for each robot
      *  Default Value: 65.43028 */
-    public  double yVelocity = 65.43028;
+    public  double yVelocity = LengthAnchors.MECANUM_Y_VELOCITY;
 
     private  double[] convertToPolar = Pose.cartesianToPolar(xVelocity, -yVelocity);
 
@@ -34,9 +36,11 @@ public class MecanumConstants {
     public  boolean useVoltageCompensation = false;
     public  double nominalVoltage = 12.0;
     public  double staticFrictionCoefficient = 0.1;
+    private LengthUnit appliedLengthUnit = LengthUnit.INCHES;
 
     public MecanumConstants() {
         defaults();
+        applyLengthUnit();
     }
 
     public MecanumConstants xVelocity(double xVelocity) {
@@ -46,6 +50,28 @@ public class MecanumConstants {
 
     public MecanumConstants yVelocity(double yVelocity) {
         this.yVelocity = yVelocity;
+        return this;
+    }
+
+    /**
+     * Rescale {@link #xVelocity} / {@link #yVelocity} from the last applied unit into
+     * {@link LengthUnit#active()}. Inch originals are {@link LengthAnchors#MECANUM_X_VELOCITY}.
+     */
+    public MecanumConstants applyLengthUnit() {
+        return applyLengthUnit(LengthUnit.active());
+    }
+
+    public MecanumConstants applyLengthUnit(LengthUnit unit) {
+        if (unit == null) {
+            throw new IllegalArgumentException("length unit must not be null");
+        }
+        if (unit != appliedLengthUnit) {
+            xVelocity = LengthUnit.rescale(xVelocity, appliedLengthUnit, unit);
+            yVelocity = LengthUnit.rescale(yVelocity, appliedLengthUnit, unit);
+            appliedLengthUnit = unit;
+            convertToPolar = Pose.cartesianToPolar(xVelocity, -yVelocity);
+            frontLeftVector = new Vector(convertToPolar[0], convertToPolar[1]).normalize();
+        }
         return this;
     }
 
@@ -236,8 +262,8 @@ public class MecanumConstants {
      * It is called in the constructor of the MecanumConstants class.
      */
     public void defaults() {
-        xVelocity = 81.34056;
-        yVelocity = 65.43028;
+        xVelocity = LengthAnchors.MECANUM_X_VELOCITY;
+        yVelocity = LengthAnchors.MECANUM_Y_VELOCITY;
         convertToPolar = Pose.cartesianToPolar(xVelocity, -yVelocity);
         frontLeftVector = new Vector(convertToPolar[0], convertToPolar[1]).normalize();
         maxPower = 1;
@@ -254,5 +280,6 @@ public class MecanumConstants {
         useVoltageCompensation = false;
         nominalVoltage = 12.0;
         staticFrictionCoefficient = 0.1;
+        appliedLengthUnit = LengthUnit.INCHES;
     }
 }

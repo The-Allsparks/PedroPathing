@@ -1,5 +1,8 @@
 package com.pedropathing.paths;
 
+import com.pedropathing.math.LengthAnchors;
+import com.pedropathing.math.LengthUnit;
+
 public final class PathConstraints {
     /**
      * When the robot is at the end of its current Path or PathChain and the velocity goes below
@@ -62,6 +65,7 @@ public final class PathConstraints {
      * The number of steps in searching for the closest point
      */
     private int BEZIER_CURVE_SEARCH_LIMIT;
+    private LengthUnit appliedLengthUnit = LengthUnit.INCHES;
 
     public PathConstraints(double tValueConstraint, double velocityConstraint, double translationalConstraint, double headingConstraint, double timeoutConstraint, double brakingStrength, int BEZIER_CURVE_SEARCH_LIMIT, double brakingStart) {
         this.tValueConstraint = tValueConstraint;
@@ -75,14 +79,32 @@ public final class PathConstraints {
     }
 
     public PathConstraints(double tValueConstraint, double timeoutConstraint, double brakingStrength, double brakingStart) {
-        this(tValueConstraint, 0.1, 0.1, 0.007, timeoutConstraint, brakingStrength, 10, brakingStart);
+        this(tValueConstraint, LengthAnchors.PATH_VELOCITY_CONSTRAINT, LengthAnchors.PATH_TRANSLATIONAL_CONSTRAINT, 0.007, timeoutConstraint, brakingStrength, 10, brakingStart);
+        applyLengthUnit();
     }
 
     public PathConstraints(double tValueConstraint, double timeoutConstraint) {
-        this(tValueConstraint, 0.1, 0.1, 0.007, timeoutConstraint, 1, 10, 1);
+        this(tValueConstraint, LengthAnchors.PATH_VELOCITY_CONSTRAINT, LengthAnchors.PATH_TRANSLATIONAL_CONSTRAINT, 0.007, timeoutConstraint, 1, 10, 1);
+        applyLengthUnit();
     }
 
-    public static PathConstraints defaultConstraints = new PathConstraints(0.995, 0.1, 0.1, 0.007, 100, 1, 10, 1);
+    public static PathConstraints defaultConstraints = new PathConstraints(0.995, LengthAnchors.PATH_VELOCITY_CONSTRAINT, LengthAnchors.PATH_TRANSLATIONAL_CONSTRAINT, 0.007, 100, 1, 10, 1);
+
+    public PathConstraints applyLengthUnit() {
+        return applyLengthUnit(LengthUnit.active());
+    }
+
+    public PathConstraints applyLengthUnit(LengthUnit unit) {
+        if (unit == null) {
+            throw new IllegalArgumentException("length unit must not be null");
+        }
+        if (unit != appliedLengthUnit) {
+            velocityConstraint = LengthUnit.rescale(velocityConstraint, appliedLengthUnit, unit);
+            translationalConstraint = LengthUnit.rescale(translationalConstraint, appliedLengthUnit, unit);
+            appliedLengthUnit = unit;
+        }
+        return this;
+    }
 
     public double getVelocityConstraint() {
         return velocityConstraint;
@@ -153,6 +175,8 @@ public final class PathConstraints {
     }
 
     public PathConstraints copy() {
-        return new PathConstraints(tValueConstraint, velocityConstraint, translationalConstraint, headingConstraint, timeoutConstraint, brakingStrength, BEZIER_CURVE_SEARCH_LIMIT, brakingStart);
+        PathConstraints copy = new PathConstraints(tValueConstraint, velocityConstraint, translationalConstraint, headingConstraint, timeoutConstraint, brakingStrength, BEZIER_CURVE_SEARCH_LIMIT, brakingStart);
+        copy.appliedLengthUnit = this.appliedLengthUnit;
+        return copy;
     }
 }

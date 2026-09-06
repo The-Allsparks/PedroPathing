@@ -18,7 +18,6 @@ import com.pedropathing.ftc.localization.localizers.ThreeWheelIMULocalizer;
 import com.pedropathing.ftc.localization.localizers.ThreeWheelLocalizer;
 import com.pedropathing.ftc.localization.localizers.TwoWheelLocalizer;
 import com.pedropathing.localization.Localizer;
-import com.pedropathing.math.LengthUnit;
 import com.pedropathing.paths.PathConstraints;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
@@ -37,8 +36,11 @@ public class FollowerBuilder {
     public FollowerBuilder(FollowerConstants constants, HardwareMap hardwareMap) {
         this.constants = constants;
         this.hardwareMap = hardwareMap;
-        constraints = PathConstraints.defaultConstraints;
-        LengthUnit.setActive(constants.lengthUnit);
+        constants.applyLengthUnit();
+        // Copy first so applying a non-inch unit does not mutate the shared static default.
+        constraints = PathConstraints.defaultConstraints.copy();
+        constraints.applyLengthUnit();
+        PathConstraints.setDefaultConstraints(constraints);
     }
 
     public FollowerBuilder setLocalizer(Localizer localizer) {
@@ -55,12 +57,12 @@ public class FollowerBuilder {
     }
 
     public FollowerBuilder OTOSLocalizer(OTOSConstants lConstants) {
-        lConstants.linearUnit(LengthUnits.toFtc(constants.lengthUnit));
+        lConstants.linearUnit(LengthUnits.activeFtc());
         return setLocalizer(new OTOSLocalizer(hardwareMap, lConstants));
     }
 
     public FollowerBuilder pinpointLocalizer(PinpointConstants lConstants) {
-        lConstants.distanceUnit(LengthUnits.toFtc(constants.lengthUnit));
+        lConstants.distanceUnit(LengthUnits.activeFtc());
         return setLocalizer(new PinpointLocalizer(hardwareMap, lConstants));
     }
 
@@ -82,19 +84,23 @@ public class FollowerBuilder {
     }
 
     public FollowerBuilder mecanumDrivetrain(MecanumConstants mecanumConstants) {
+        mecanumConstants.applyLengthUnit();
         return setDrivetrain(new Mecanum(hardwareMap, mecanumConstants));
     }
 
     @Deprecated
     public FollowerBuilder mecanumExDrivetrain(MecanumConstants mecanumConstants) {
+        mecanumConstants.applyLengthUnit();
         return setDrivetrain(new MecanumEx(hardwareMap, mecanumConstants));
     }
 
     public FollowerBuilder swerveDrivetrain(SwerveConstants swerveConstants, SwervePod... pods) {
+        swerveConstants.applyLengthUnit();
         return setDrivetrain(new Swerve(hardwareMap, swerveConstants, pods));
     }
 
     public FollowerBuilder pathConstraints(PathConstraints pathConstraints) {
+        pathConstraints.applyLengthUnit();
         this.constraints = pathConstraints;
         PathConstraints.setDefaultConstraints(pathConstraints);
         return this;

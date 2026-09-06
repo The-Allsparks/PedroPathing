@@ -2,6 +2,7 @@ package com.pedropathing.ftc;
 
 import com.pedropathing.geometry.CoordinateSystem;
 import com.pedropathing.geometry.Pose;
+import com.pedropathing.math.LengthUnit;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
@@ -22,7 +23,10 @@ public class PoseConverter {
 
     public static Pose2D poseToPose2D(Pose pose, CoordinateSystem desiredCoordinateSystem, DistanceUnit unit) {
         Pose converted = pose.getAsCoordinateSystem(desiredCoordinateSystem);
-        return new Pose2D(unit, converted.getX(), converted.getY(), AngleUnit.RADIANS, converted.getHeading());
+        LengthUnit hardware = LengthUnits.fromFtc(unit);
+        double x = LengthUnit.rescale(converted.getX(), LengthUnit.active(), hardware);
+        double y = LengthUnit.rescale(converted.getY(), LengthUnit.active(), hardware);
+        return new Pose2D(unit, x, y, AngleUnit.RADIANS, converted.getHeading());
     }
 
     /**
@@ -37,6 +41,9 @@ public class PoseConverter {
     }
 
     public static Pose pose2DToPose(Pose2D pose2d, CoordinateSystem coordinateSystem, DistanceUnit unit) {
-        return new Pose(pose2d.getX(unit), pose2d.getY(unit), pose2d.getHeading(AngleUnit.RADIANS), coordinateSystem);
+        LengthUnit hardware = LengthUnits.fromFtc(unit);
+        double x = LengthUnit.rescale(pose2d.getX(unit), hardware, LengthUnit.active());
+        double y = LengthUnit.rescale(pose2d.getY(unit), hardware, LengthUnit.active());
+        return new Pose(x, y, pose2d.getHeading(AngleUnit.RADIANS), coordinateSystem);
     }
 }

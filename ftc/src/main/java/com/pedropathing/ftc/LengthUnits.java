@@ -12,6 +12,10 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 public final class LengthUnits {
     private LengthUnits() {}
 
+    /**
+     * FTC {@link DistanceUnit} has no foot. {@link LengthUnit#FEET} maps to {@link DistanceUnit#INCH};
+     * {@link PoseConverter} converts poses between the follower unit and that hardware unit.
+     */
     public static DistanceUnit toFtc(LengthUnit unit) {
         if (unit == LengthUnit.CENTIMETERS) {
             return DistanceUnit.CM;

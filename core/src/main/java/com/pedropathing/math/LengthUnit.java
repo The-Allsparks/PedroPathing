@@ -4,17 +4,20 @@ package com.pedropathing.math;
  * Selectable length unit for Pedro Pathing poses, paths, localizer constants, and tuners.
  *
  * <p>The follower math is unit-agnostic: pick one unit and use it everywhere. Inches remain the
- * default so upstream Quickstart projects keep their existing numbers. Hardware localizers that
- * talk to FTC {@code DistanceUnit} are mapped from this value in the FTC adapter.
+ * default so upstream Quickstart projects keep their existing numbers. Inch-authored defaults live
+ * in {@link LengthAnchors} and are converted with {@link #rescale}, {@link #rescaleInverse}, and
+ * {@link #rescaleSquared}. Hardware localizers that talk to FTC {@code DistanceUnit} are mapped
+ * from this value in the FTC adapter.
  *
- * <p>{@link #setActive(LengthUnit)} is called when a {@code FollowerBuilder} or {@code Follower}
- * is constructed so pose mirroring and dashboard drawing can convert without threading the unit
- * through every call site.
+ * <p>Pick the unit once with {@link #use(LengthUnit)} or {@link #setActive(LengthUnit)}. Constants
+ * constructors, tuners, and hardware adapters look up {@link #active()} instead of taking a unit
+ * argument.
  *
  * @author The Allsparks - 36117
  */
 public enum LengthUnit {
     INCHES("in", "inches", 1.0),
+    FEET("ft", "feet", 1.0 / 12.0),
     CENTIMETERS("cm", "centimeters", 2.54),
     MILLIMETERS("mm", "millimeters", 25.4),
     METERS("m", "meters", 0.0254);
@@ -95,8 +98,53 @@ public enum LengthUnit {
         return fromInches(MIRROR_FIELD_INCHES);
     }
 
+    /**
+     * Multiply this unit's values by this to get inches, or divide inches by this to get this unit.
+     * Equal to {@link #fromInches(double) fromInches(1)}.
+     */
+    public double unitsPerInch() {
+        return unitsPerInch;
+    }
+
+    /** Convert a length, speed, or acceleration from {@code from} into {@code to}. */
+    public static double rescale(double value, LengthUnit from, LengthUnit to) {
+        if (from == to) {
+            return value;
+        }
+        return to.fromInches(from.toInches(value));
+    }
+
+    /**
+     * Convert a per-length quantity (PID P/I/D/F on a length error, centripetal scaling)
+     * from {@code from} into {@code to}.
+     */
+    public static double rescaleInverse(double value, LengthUnit from, LengthUnit to) {
+        if (from == to) {
+            return value;
+        }
+        return value * from.unitsPerInch / to.unitsPerInch;
+    }
+
+    /** Convert a length-squared quantity (1D Kalman covariance on a length error). */
+    public static double rescaleSquared(double value, LengthUnit from, LengthUnit to) {
+        if (from == to) {
+            return value;
+        }
+        double factor = to.unitsPerInch / from.unitsPerInch;
+        return value * factor * factor;
+    }
+
     public static LengthUnit active() {
         return active;
+    }
+
+    /**
+     * Set the process-wide length unit and return it so TeamCode can store it on the constants
+     * class: {@code public static final LengthUnit LENGTH = LengthUnit.use(LengthUnit.CENTIMETERS);}
+     */
+    public static LengthUnit use(LengthUnit unit) {
+        setActive(unit);
+        return unit;
     }
 
     public static void setActive(LengthUnit unit) {
@@ -104,5 +152,32 @@ public enum LengthUnit {
             throw new IllegalArgumentException("length unit must not be null");
         }
         active = unit;
+    }
+
+    /** Convert inches into {@link #active()}. */
+    public static double ofInches(double inches) {
+        return active().fromInches(inches);
+    }
+
+    /** Convert a value in {@link #active()} into inches. */
+    public static double inInches(double value) {
+        return active().toInches(value);
+    }
+
+    /** Convert a length, speed, or acceleration from {@code from} into {@link #active()}. */
+    public static double rescale(double value, LengthUnit from) {
+        return rescale(value, from, active());
+    }
+
+    /**
+     * Convert a per-length quantity from {@code from} into {@link #active()}.
+     */
+    public static double rescaleInverse(double value, LengthUnit from) {
+        return rescaleInverse(value, from, active());
+    }
+
+    /** Convert a length-squared quantity from {@code from} into {@link #active()}. */
+    public static double rescaleSquared(double value, LengthUnit from) {
+        return rescaleSquared(value, from, active());
     }
 }
