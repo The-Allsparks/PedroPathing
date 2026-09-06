@@ -299,12 +299,22 @@ public final class Pose implements FuturePose {
     }
 
     /**
-     * This mirrors this pose across the field in Pedro coordinates using the active
-     * {@link LengthUnit} field length (141.5 inches when the unit is inches).
+     * This mirrors this pose across the field in Pedro coordinates using the upstream 141.5 inch
+     * field length. Non-inch followers should call {@link #mirror(LengthUnit)} or
+     * {@link #mirror(double)}.
      * @return the mirrored Pose.
      */
     public Pose mirror() {
-        return mirror(LengthUnit.active().mirrorFieldLength());
+        return mirror(LengthUnit.MIRROR_FIELD_INCHES);
+    }
+
+    /**
+     * This mirrors this pose across the field in Pedro coordinates using the Pedro mirror length
+     * for {@code unit}.
+     * @return the mirrored Pose.
+     */
+    public Pose mirror(LengthUnit unit) {
+        return mirror(LengthUnit.requireNonNull(unit).mirrorFieldLength());
     }
 
     /**

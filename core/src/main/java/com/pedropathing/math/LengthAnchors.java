@@ -2,10 +2,10 @@ package com.pedropathing.math;
 
 /**
  * Upstream Pedro defaults, authored in inches. {@link LengthUnit} converts these into
- * centimeters, meters, feet, or millimeters so a unit switch keeps follower behavior.
+ * centimeters, meters, or feet so a unit switch keeps follower behavior.
  *
- * <p>Set {@link LengthUnit#use(LengthUnit)} once. Constructors and {@code applyLengthUnit()}
- * look up {@link LengthUnit#active()} rather than taking a unit at every call site.
+ * <p>These values are immutable canonical anchors. Generate a new constants object for the
+ * selected unit instead of repeatedly mutating and rescaling an already-converted object.
  *
  * @author The Allsparks - 36117
  */
@@ -20,6 +20,38 @@ public final class LengthAnchors {
     public static final double CENTRIPETAL_SCALING = 0.0005;
     public static final double KALMAN_MODEL_COVARIANCE = 6;
     public static final double KALMAN_DATA_COVARIANCE = 1;
+
+    public static final double TRANSLATIONAL_PID_P = 0.1;
+    public static final double TRANSLATIONAL_PID_I = 0;
+    public static final double TRANSLATIONAL_PID_D = 0;
+    public static final double TRANSLATIONAL_PID_F = 0;
+
+    public static final double SECONDARY_TRANSLATIONAL_PID_P = 0.3;
+    public static final double SECONDARY_TRANSLATIONAL_PID_I = 0;
+    public static final double SECONDARY_TRANSLATIONAL_PID_D = 0.01;
+    public static final double SECONDARY_TRANSLATIONAL_PID_F = 0.015;
+
+    public static final double DRIVE_PID_P = 0.025;
+    public static final double DRIVE_PID_I = 0;
+    public static final double DRIVE_PID_D = 0.00001;
+    public static final double DRIVE_PID_F = 0.01;
+    public static final double DRIVE_PID_T = 0.6;
+
+    public static final double SECONDARY_DRIVE_PID_P = 0.02;
+    public static final double SECONDARY_DRIVE_PID_I = 0;
+    public static final double SECONDARY_DRIVE_PID_D = 0.000005;
+    public static final double SECONDARY_DRIVE_PID_F = 0.01;
+    public static final double SECONDARY_DRIVE_PID_T = 0.6;
+
+    public static final double INTEGRAL_TRANSLATIONAL_F = 0.015;
+    public static final double SECONDARY_INTEGRAL_TRANSLATIONAL_P = 0;
+    public static final double SECONDARY_INTEGRAL_TRANSLATIONAL_I = 0;
+    public static final double SECONDARY_INTEGRAL_TRANSLATIONAL_D = 0;
+    public static final double SECONDARY_INTEGRAL_TRANSLATIONAL_F = 0;
+
+    public static final double PREDICTIVE_BRAKING_P = 0.15;
+    public static final double PREDICTIVE_BRAKING_LINEAR = 0.1;
+    public static final double PREDICTIVE_BRAKING_QUADRATIC = 0.001;
 
     public static final double MECANUM_X_VELOCITY = 81.34056;
     public static final double MECANUM_Y_VELOCITY = 65.43028;
@@ -39,11 +71,8 @@ public final class LengthAnchors {
     /** Circle test radius. */
     public static final double TUNER_RADIUS = 10;
 
-    public static double of(double inches) {
-        return LengthUnit.ofInches(inches);
-    }
-
+    /** Convert an inch-authored length into {@code unit}. */
     public static double of(double inches, LengthUnit unit) {
-        return unit.fromInches(inches);
+        return LengthUnit.requireNonNull(unit).fromInches(inches);
     }
 }
