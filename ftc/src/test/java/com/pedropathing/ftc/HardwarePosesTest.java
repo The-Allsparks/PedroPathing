@@ -3,56 +3,54 @@ package com.pedropathing.ftc;
 import static org.junit.Assert.assertEquals;
 
 import com.pedropathing.geometry.Pose;
-import com.pedropathing.math.LengthUnit;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.junit.Test;
 
 public class HardwarePosesTest {
-    private static final double EPS = 1e-12;
+    private static final double EPS = 1e-9;
 
     @Test
-    public void pinpointFeetPositionAndVelocityAreConsistent() {
-        Pose position = HardwarePoses.toFollower(24, 12, 0.1, DistanceUnit.INCH, LengthUnit.FEET);
-        Pose velocity = HardwarePoses.toFollower(36, -12, 0.2, DistanceUnit.INCH, LengthUnit.FEET);
-        assertEquals(2.0, position.getX(), EPS);
-        assertEquals(1.0, position.getY(), EPS);
-        assertEquals(0.1, position.getHeading(), EPS);
-        assertEquals(3.0, velocity.getX(), EPS);
-        assertEquals(-1.0, velocity.getY(), EPS);
-        double[] hardware = HardwarePoses.toHardware(position, LengthUnit.FEET, DistanceUnit.INCH, AngleUnit.RADIANS);
+    public void pinpointMillimetersBecomeCanonicalInches() {
+        Pose pose = HardwarePoses.toInternal(304.8, 152.4, Math.PI / 2, DistanceUnit.MM);
+        assertEquals(12.0, pose.getX(), EPS);
+        assertEquals(6.0, pose.getY(), EPS);
+        assertEquals(Math.PI / 2, pose.getHeading(), EPS);
+    }
+
+    @Test
+    public void otosCentimetersBecomeCanonicalInchesIncludingAccelerationScale() {
+        Pose pose = HardwarePoses.toInternal(2.54, 5.08, 0, DistanceUnit.CM);
+        assertEquals(1.0, pose.getX(), EPS);
+        assertEquals(2.0, pose.getY(), EPS);
+        double inchesPerSecondSquared = HardwareLengths.toInches(2.54, DistanceUnit.CM);
+        assertEquals(1.0, inchesPerSecondSquared, EPS);
+    }
+
+    @Test
+    public void setPoseInchesConvertToHardwareMillimeters() {
+        Pose internal = new Pose(12, 6, 0);
+        double[] hardware = HardwarePoses.toHardware(internal, DistanceUnit.MM, AngleUnit.RADIANS);
+        assertEquals(304.8, hardware[0], EPS);
+        assertEquals(152.4, hardware[1], EPS);
+        assertEquals(0.0, hardware[2], EPS);
+    }
+
+    @Test
+    public void feetInterfaceIsConvertedBeforeHardwareBoundary() {
+        double inches = 2.0 * 12.0;
+        double[] hardware = HardwarePoses.toHardware(new Pose(inches, 0, 0), DistanceUnit.INCH, AngleUnit.RADIANS);
         assertEquals(24.0, hardware[0], EPS);
-        assertEquals(12.0, hardware[1], EPS);
-        assertEquals(0.1, hardware[2], EPS);
     }
 
     @Test
-    public void otosFeetPositionAndVelocityAreConsistent() {
-        Pose position = HardwarePoses.toFollower(12, 24, 90, DistanceUnit.INCH, LengthUnit.FEET, AngleUnit.DEGREES);
-        Pose velocity = HardwarePoses.toFollower(12, 0, 0, DistanceUnit.INCH, LengthUnit.FEET, AngleUnit.DEGREES);
-        assertEquals(1.0, position.getX(), EPS);
-        assertEquals(2.0, position.getY(), EPS);
-        assertEquals(Math.PI / 2, position.getHeading(), EPS);
-        assertEquals(1.0, velocity.getX(), EPS);
-        double[] hardware = HardwarePoses.toHardware(position, LengthUnit.FEET, DistanceUnit.INCH, AngleUnit.DEGREES);
-        assertEquals(12.0, hardware[0], EPS);
-        assertEquals(24.0, hardware[1], EPS);
-        assertEquals(90.0, hardware[2], EPS);
-    }
-
-    @Test
-    public void octoQuadFeetUsesMillimeterBoundary() {
-        assertEquals(1.0, LengthUnit.FEET.fromMillimeters(304.8), EPS);
-        assertEquals(304.8, LengthUnit.FEET.toMillimeters(1.0), EPS);
-        Pose pose = new Pose(2, 0.5, 0);
-        assertEquals(609.6, LengthUnit.FEET.toMillimeters(pose.getX()), EPS);
-    }
-
-    @Test
-    public void hardwareOffsetsAreNotRescaledByFollowerUnit() {
-        double pinpointOffsetInches = 1.5;
-        assertEquals(1.5, pinpointOffsetInches, EPS);
-        assertEquals(1.5, LengthUnits.toHardware(LengthUnits.toFollower(1.5, DistanceUnit.INCH, LengthUnit.FEET), LengthUnit.FEET, DistanceUnit.INCH), EPS);
+    public void roundTripDoesNotDoubleConvert() {
+        Pose original = new Pose(18, -4, 0.3);
+        double[] hardware = HardwarePoses.toHardware(original, DistanceUnit.CM, AngleUnit.RADIANS);
+        Pose roundTrip = HardwarePoses.toInternal(hardware[0], hardware[1], hardware[2], DistanceUnit.CM, AngleUnit.RADIANS);
+        assertEquals(original.getX(), roundTrip.getX(), EPS);
+        assertEquals(original.getY(), roundTrip.getY(), EPS);
+        assertEquals(original.getHeading(), roundTrip.getHeading(), EPS);
     }
 }

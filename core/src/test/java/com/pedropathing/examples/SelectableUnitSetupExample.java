@@ -1,35 +1,38 @@
 package com.pedropathing.examples;
 
-import com.pedropathing.control.PIDFCoefficients;
 import com.pedropathing.follower.FollowerConstants;
+import com.pedropathing.geometry.Pose;
+import com.pedropathing.math.AngularUnit;
 import com.pedropathing.math.LengthUnit;
+import com.pedropathing.math.MassUnit;
+import com.pedropathing.math.PedroUnits;
 import com.pedropathing.paths.PathConstraints;
 
-import org.junit.Test;
-
 /**
- * Representative upstream-style TeamCode constants that compile against the unit-aware APIs.
+ * Compile-and-assert fixture for the configured-interface unit API.
  */
 public class SelectableUnitSetupExample {
-    public static final LengthUnit LENGTH = LengthUnit.CENTIMETERS;
+    public static final PedroUnits UNITS = new PedroUnits(
+            LengthUnit.CENTIMETERS,
+            MassUnit.KILOGRAMS,
+            AngularUnit.RADIANS);
 
-    public static FollowerConstants followerConstants =
-            FollowerConstants.defaultsFor(LENGTH)
-                    .mass(10)
-                    .translationalPIDFCoefficients(new PIDFCoefficients(0.1 / 2.54, 0, 0, 0));
+    @org.junit.Test
+    public void configuredPoseAndConstraintsConvertOnce() {
+        FollowerConstants constants = new FollowerConstants().mass(10);
+        org.junit.Assert.assertEquals(10.0, constants.mass, 1e-9);
+        org.junit.Assert.assertEquals(0.1, constants.coefficientsTranslationalPIDF.P, 1e-9);
 
-    public static PathConstraints pathConstraints = new PathConstraints(0.99, 100, 1, 1);
+        Pose start = UNITS.pose(0, 0, 0);
+        Pose end = UNITS.pose(60.96, 0, 0);
+        org.junit.Assert.assertEquals(0.0, start.getX(), 1e-9);
+        org.junit.Assert.assertEquals(24.0, end.getX(), 1e-9);
 
-    @Test
-    public void inchShortConstructorCanBeConvertedAtFollowerBoundary() {
-        PathConstraints converted = pathConstraints.inUnit(LENGTH);
-        org.junit.Assert.assertEquals(LengthUnit.CENTIMETERS, converted.getLengthUnit());
-        org.junit.Assert.assertEquals(LengthUnit.INCHES, pathConstraints.getLengthUnit());
-    }
-
-    @Test
-    public void fluentDeprecatedStyleStillCompiles() {
-        FollowerConstants inch = new FollowerConstants().mass(10.65);
-        org.junit.Assert.assertEquals(LengthUnit.INCHES, inch.getLengthUnit());
+        PathConstraints constraints = UNITS.pathConstraints()
+                .velocityConstraint(2.54)
+                .translationalConstraint(2.54)
+                .build();
+        org.junit.Assert.assertEquals(1.0, constraints.getVelocityConstraint(), 1e-9);
+        org.junit.Assert.assertEquals(0.1, PathConstraints.defaultConstraints.getVelocityConstraint(), 1e-9);
     }
 }
