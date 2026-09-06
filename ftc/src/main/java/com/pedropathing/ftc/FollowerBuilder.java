@@ -18,6 +18,7 @@ import com.pedropathing.ftc.localization.localizers.ThreeWheelIMULocalizer;
 import com.pedropathing.ftc.localization.localizers.ThreeWheelLocalizer;
 import com.pedropathing.ftc.localization.localizers.TwoWheelLocalizer;
 import com.pedropathing.localization.Localizer;
+import com.pedropathing.math.LengthUnit;
 import com.pedropathing.paths.PathConstraints;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
@@ -32,19 +33,36 @@ public class FollowerBuilder {
     private final HardwareMap hardwareMap;
     private Localizer localizer;
     private Drivetrain drivetrain;
+    private LengthUnit followerUnit;
+    private boolean hardwareConfigured;
 
     public FollowerBuilder(FollowerConstants constants, HardwareMap hardwareMap) {
         this.constants = constants;
         this.hardwareMap = hardwareMap;
-        constants.applyLengthUnit();
-        // Copy first so applying a non-inch unit does not mutate the shared static default.
-        constraints = PathConstraints.defaultConstraints.copy();
-        constraints.applyLengthUnit();
-        PathConstraints.setDefaultConstraints(constraints);
+        this.followerUnit = constants.getLengthUnit();
+        this.constraints = PathConstraints.defaultsFor(followerUnit);
+    }
+
+    /**
+     * Select the follower length unit for this builder. Must be called before configuring the
+     * localizer or drivetrain. Does not mutate the supplied {@link FollowerConstants}.
+     */
+    public FollowerBuilder lengthUnit(LengthUnit followerUnit) {
+        if (hardwareConfigured) {
+            throw new IllegalStateException("lengthUnit() must be called before configuring the localizer or drivetrain");
+        }
+        this.followerUnit = LengthUnit.requireNonNull(followerUnit);
+        this.constraints = PathConstraints.defaultsFor(this.followerUnit);
+        return this;
+    }
+
+    public LengthUnit getLengthUnit() {
+        return followerUnit;
     }
 
     public FollowerBuilder setLocalizer(Localizer localizer) {
         this.localizer = localizer;
+        hardwareConfigured = true;
         return this;
     }
 
@@ -53,17 +71,15 @@ public class FollowerBuilder {
     }
 
     public FollowerBuilder octoQuadLocalizer(OctoQuadConstants lConstants, OctoQuadLocalizer.InitMode initMode) {
-        return setLocalizer(new OctoQuadLocalizer(hardwareMap, lConstants, initMode));
+        return setLocalizer(new OctoQuadLocalizer(hardwareMap, lConstants, initMode, followerUnit));
     }
 
     public FollowerBuilder OTOSLocalizer(OTOSConstants lConstants) {
-        lConstants.linearUnit(LengthUnits.activeFtc());
-        return setLocalizer(new OTOSLocalizer(hardwareMap, lConstants));
+        return setLocalizer(new OTOSLocalizer(hardwareMap, lConstants, followerUnit));
     }
 
     public FollowerBuilder pinpointLocalizer(PinpointConstants lConstants) {
-        lConstants.distanceUnit(LengthUnits.activeFtc());
-        return setLocalizer(new PinpointLocalizer(hardwareMap, lConstants));
+        return setLocalizer(new PinpointLocalizer(hardwareMap, lConstants, followerUnit));
     }
 
     public FollowerBuilder threeWheelIMULocalizer(ThreeWheelIMUConstants lConstants) {
@@ -80,33 +96,31 @@ public class FollowerBuilder {
 
     public FollowerBuilder setDrivetrain(Drivetrain drivetrain) {
         this.drivetrain = drivetrain;
+        hardwareConfigured = true;
         return this;
     }
 
     public FollowerBuilder mecanumDrivetrain(MecanumConstants mecanumConstants) {
-        mecanumConstants.applyLengthUnit();
-        return setDrivetrain(new Mecanum(hardwareMap, mecanumConstants));
+        return setDrivetrain(new Mecanum(hardwareMap, mecanumConstants.inUnit(followerUnit)));
     }
 
     @Deprecated
     public FollowerBuilder mecanumExDrivetrain(MecanumConstants mecanumConstants) {
-        mecanumConstants.applyLengthUnit();
-        return setDrivetrain(new MecanumEx(hardwareMap, mecanumConstants));
+        return setDrivetrain(new MecanumEx(hardwareMap, mecanumConstants.inUnit(followerUnit)));
     }
 
     public FollowerBuilder swerveDrivetrain(SwerveConstants swerveConstants, SwervePod... pods) {
-        swerveConstants.applyLengthUnit();
-        return setDrivetrain(new Swerve(hardwareMap, swerveConstants, pods));
+        return setDrivetrain(new Swerve(hardwareMap, swerveConstants.inUnit(followerUnit), pods));
     }
 
     public FollowerBuilder pathConstraints(PathConstraints pathConstraints) {
-        pathConstraints.applyLengthUnit();
         this.constraints = pathConstraints;
-        PathConstraints.setDefaultConstraints(pathConstraints);
         return this;
     }
 
     public Follower build() {
-        return new Follower(constants, localizer, drivetrain, constraints);
+        FollowerConstants followerConstants = constants.inUnit(followerUnit);
+        PathConstraints resolvedConstraints = constraints.inUnit(followerUnit);
+        return new Follower(followerConstants, localizer, drivetrain, resolvedConstraints);
     }
 }

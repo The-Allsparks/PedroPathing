@@ -17,7 +17,7 @@ public class OTOSConstants {
      * Default Value: "sensor_otos" */
     public  String hardwareMapName = "sensor_otos";
 
-    /** The linear unit of the OTOS sensor
+    /** The linear unit of the OTOS sensor. Independent of the follower length unit.
      * Default Value: DistanceUnit.INCH */
     public  DistanceUnit linearUnit = DistanceUnit.INCH;
 
@@ -25,7 +25,8 @@ public class OTOSConstants {
      * Default Value: AngleUnit.RADIANS */
     public  AngleUnit angleUnit = AngleUnit.RADIANS;
 
-    /** The offset of the OTOS sensor from the center of the robot
+    /** The offset of the OTOS sensor from the center of the robot, in {@link #linearUnit}.
+     * This is a hardware measurement and is not converted when the follower uses a different unit.
      * For the OTOS, left/right is the y axis and forward/backward is the x axis, with left being positive y and forward being positive x.
      * PI/2 radians is facing forward, and clockwise rotation is negative rotation.
      * Default Value: new Pose2D(0, 0, Math.PI / 2) */

@@ -2,6 +2,7 @@ package com.pedropathing.ftc.localization.localizers;
 
 import android.annotation.SuppressLint;
 
+import com.pedropathing.ftc.LengthUnits;
 import com.pedropathing.ftc.PoseConverter;
 import com.pedropathing.ftc.localization.constants.PinpointConstants;
 import com.pedropathing.geometry.PedroCoordinates;
@@ -13,9 +14,9 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 
 import com.pedropathing.localization.Localizer;
 import com.pedropathing.geometry.Pose;
+import com.pedropathing.math.LengthUnit;
 import com.pedropathing.math.MathFunctions;
 import com.pedropathing.math.Vector;
-import com.pedropathing.util.NanoTimer;
 
 import java.util.Objects;
 
@@ -32,6 +33,7 @@ import java.util.Objects;
 public class PinpointLocalizer implements Localizer {
     private final GoBildaPinpointDriver odo;
     private final PinpointConstants constants;
+    private final LengthUnit followerUnit;
     private double previousHeading;
     private double totalHeading;
     private Pose startPose;
@@ -44,18 +46,38 @@ public class PinpointLocalizer implements Localizer {
      *
      * @param map the HardwareMap
      */
-    public PinpointLocalizer(HardwareMap map, PinpointConstants constants){ this(map, constants, new Pose());}
+    public PinpointLocalizer(HardwareMap map, PinpointConstants constants) {
+        this(map, constants, new Pose(), LengthUnit.INCHES);
+    }
+
+    public PinpointLocalizer(HardwareMap map, PinpointConstants constants, LengthUnit followerUnit) {
+        this(map, constants, new Pose(), followerUnit);
+    }
 
     /**
      * This creates a new PinpointLocalizer from a HardwareMap and a Pose, with the Pose
-     * specifying the starting pose of the localizer.
+     * specifying the starting pose of the localizer in inches.
      *
      * @param map the HardwareMap
      * @param setStartPose the Pose to start from
      */
+    public PinpointLocalizer(HardwareMap map, PinpointConstants constants, Pose setStartPose) {
+        this(map, constants, setStartPose, LengthUnit.INCHES);
+    }
+
+    /**
+     * This creates a new PinpointLocalizer from a HardwareMap and a Pose, with the Pose
+     * specifying the starting pose of the localizer in {@code followerUnit}.
+     * Pinpoint hardware constants retain their own {@link DistanceUnit}; conversion happens here.
+     *
+     * @param map the HardwareMap
+     * @param setStartPose the Pose to start from, in {@code followerUnit}
+     * @param followerUnit the follower length unit
+     */
     @SuppressLint("NewApi")
-    public PinpointLocalizer(HardwareMap map, PinpointConstants constants, Pose setStartPose){
+    public PinpointLocalizer(HardwareMap map, PinpointConstants constants, Pose setStartPose, LengthUnit followerUnit) {
         this.constants = constants;
+        this.followerUnit = LengthUnit.requireNonNull(followerUnit);
 
         odo = map.get(GoBildaPinpointDriver.class,constants.hardwareMapName);
         setOffsets(constants.forwardPodY, constants.strafePodX, constants.distanceUnit);
@@ -134,7 +156,7 @@ public class PinpointLocalizer implements Localizer {
      */
     @Override
     public void setPose(Pose setPose) {
-        odo.setPosition(PoseConverter.poseToPose2D(setPose, PedroCoordinates.INSTANCE, constants.distanceUnit));
+        odo.setPosition(PoseConverter.poseToPose2D(setPose, PedroCoordinates.INSTANCE, followerUnit, constants.distanceUnit));
         pinpointPose = setPose;
         previousHeading = setPose.getHeading();
     }
@@ -145,11 +167,14 @@ public class PinpointLocalizer implements Localizer {
     @Override
     public void update() {
         odo.update();
-        Pose currentPinpointPose = PoseConverter.pose2DToPose(odo.getPosition(), PedroCoordinates.INSTANCE, constants.distanceUnit);
+        Pose currentPinpointPose = PoseConverter.pose2DToPose(odo.getPosition(), PedroCoordinates.INSTANCE, constants.distanceUnit, followerUnit);
         // Thank you to GoldenElf58 of FTC Team 16657 for spotting a bug here; it was resolved by adding the turn direction.
         totalHeading += MathFunctions.getSmallestAngleDifference(currentPinpointPose.getHeading(), previousHeading) * MathFunctions.getTurnDirection(previousHeading, currentPinpointPose.getHeading());
         previousHeading = currentPinpointPose.getHeading();
-        currentVelocity = new Pose(odo.getVelX(constants.distanceUnit), odo.getVelY(constants.distanceUnit), odo.getHeadingVelocity(AngleUnit.RADIANS.getUnnormalized()));
+        currentVelocity = new Pose(
+                LengthUnits.toFollower(odo.getVelX(constants.distanceUnit), constants.distanceUnit, followerUnit),
+                LengthUnits.toFollower(odo.getVelY(constants.distanceUnit), constants.distanceUnit, followerUnit),
+                odo.getHeadingVelocity(AngleUnit.RADIANS.getUnnormalized()));
         pinpointPose = currentPinpointPose;
     }
 
@@ -256,12 +281,12 @@ public class PinpointLocalizer implements Localizer {
 
     @Override
     public void setX(double x) {
-        odo.setPosX(x, constants.distanceUnit);
+        odo.setPosX(LengthUnits.toHardware(x, followerUnit, constants.distanceUnit), constants.distanceUnit);
     }
 
     @Override
     public void setY(double y) {
-        odo.setPosY(y, constants.distanceUnit);
+        odo.setPosY(LengthUnits.toHardware(y, followerUnit, constants.distanceUnit), constants.distanceUnit);
     }
 
     @Override

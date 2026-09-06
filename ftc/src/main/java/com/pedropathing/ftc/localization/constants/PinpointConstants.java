@@ -19,7 +19,8 @@ import java.util.OptionalDouble;
 @TargetApi(Build.VERSION_CODES.N)
 public class PinpointConstants {
 
-    /** The Y Offset of the Forward Encoder (Deadwheel) from the center of the robot in DistanceUnit
+    /** The Y Offset of the Forward Encoder (Deadwheel) from the center of the robot, in {@link #distanceUnit}.
+     * This is a hardware measurement and is not converted when the follower uses a different unit.
      * @see #distanceUnit
      * Default Value: 1 */
     public  double forwardPodY = 1;

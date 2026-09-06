@@ -3,20 +3,44 @@ package com.pedropathing.ftc;
 import com.pedropathing.geometry.CoordinateSystem;
 import com.pedropathing.geometry.PedroCoordinates;
 import com.pedropathing.geometry.Pose;
-import com.pedropathing.math.MathFunctions;
+import com.pedropathing.math.LengthUnit;
 
 /**
- * An enum that contains the FTC standard coordinate system.
- * This enum implements the {@link CoordinateSystem} interface, which specifies a way to convert to and from FTC standard coordinates.
+ * FTC standard coordinate system. Field-center offsets follow the supplied follower
+ * {@link LengthUnit} so a centimeter follower rotates about 182.88 rather than 72.
  *
- * <p>This implementation performs numeric transforms directly on the Pose components
- * to avoid calling {@code Pose} methods that may themselves trigger coordinate conversions.</p>
+ * <p>{@link #INSTANCE} is the inch-based system (field center 72) for upstream compatibility.
  *
  * @author BeepBot99
  * @author Baron Henderson
  */
-public enum FTCCoordinates implements CoordinateSystem {
-    INSTANCE;
+public final class FTCCoordinates implements CoordinateSystem {
+    private static final FTCCoordinates[] CACHE = createCache();
+    public static final FTCCoordinates INSTANCE = CACHE[LengthUnit.INCHES.ordinal()];
+
+    private final LengthUnit unit;
+    private final double fieldCenter;
+
+    private FTCCoordinates(LengthUnit unit) {
+        this.unit = unit;
+        this.fieldCenter = unit.fieldCenter();
+    }
+
+    private static FTCCoordinates[] createCache() {
+        FTCCoordinates[] cache = new FTCCoordinates[LengthUnit.values().length];
+        for (LengthUnit unit : LengthUnit.values()) {
+            cache[unit.ordinal()] = new FTCCoordinates(unit);
+        }
+        return cache;
+    }
+
+    public static FTCCoordinates in(LengthUnit unit) {
+        return CACHE[LengthUnit.requireNonNull(unit).ordinal()];
+    }
+
+    public LengthUnit getLengthUnit() {
+        return unit;
+    }
 
     /**
      * Converts a {@link Pose} to this coordinate system from Pedro coordinates
@@ -26,8 +50,8 @@ public enum FTCCoordinates implements CoordinateSystem {
      */
     @Override
     public Pose convertFromPedro(Pose pose) {
-        Pose newPose = pose.minus(new Pose(72, 72)).rotate(-Math.PI / 2, true);
-        return new Pose(newPose.getX(), newPose.getY(), newPose.getHeading(), INSTANCE);
+        Pose newPose = pose.minus(new Pose(fieldCenter, fieldCenter)).rotate(-Math.PI / 2, true);
+        return new Pose(newPose.getX(), newPose.getY(), newPose.getHeading(), this);
     }
 
     /**
@@ -38,7 +62,7 @@ public enum FTCCoordinates implements CoordinateSystem {
      */
     @Override
     public Pose convertToPedro(Pose pose) {
-        Pose newPose = new Pose (pose.getX(), pose.getY(), pose.getHeading(), PedroCoordinates.INSTANCE);
-        return newPose.rotate(Math.PI / 2, true).plus(new Pose(72, 72));
+        Pose newPose = new Pose(pose.getX(), pose.getY(), pose.getHeading(), PedroCoordinates.INSTANCE);
+        return newPose.rotate(Math.PI / 2, true).plus(new Pose(fieldCenter, fieldCenter));
     }
 }

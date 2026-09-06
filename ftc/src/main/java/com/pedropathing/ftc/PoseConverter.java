@@ -11,39 +11,39 @@ import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
 public class PoseConverter {
 
     /**
-     * Converts a Pose to a Pose2D in the desired coordinate system using the active length unit.
+     * Converts a Pedro {@link Pose} to an FTC {@link Pose2D}.
      *
-     * @param pose the Pose object
+     * @param pose the Pose object, with x/y in {@code followerUnit}
      * @param desiredCoordinateSystem the desired coordinate system
-     * @return a Pose2D object with x/y in the active follower length unit and heading in radians
+     * @param followerUnit the unit of the Pedro pose
+     * @param hardwareUnit the unit stored in the returned Pose2D
      */
-    public static Pose2D poseToPose2D(Pose pose, CoordinateSystem desiredCoordinateSystem) {
-        return poseToPose2D(pose, desiredCoordinateSystem, LengthUnits.activeFtc());
-    }
-
-    public static Pose2D poseToPose2D(Pose pose, CoordinateSystem desiredCoordinateSystem, DistanceUnit unit) {
+    public static Pose2D poseToPose2D(
+            Pose pose,
+            CoordinateSystem desiredCoordinateSystem,
+            LengthUnit followerUnit,
+            DistanceUnit hardwareUnit) {
         Pose converted = pose.getAsCoordinateSystem(desiredCoordinateSystem);
-        LengthUnit hardware = LengthUnits.fromFtc(unit);
-        double x = LengthUnit.rescale(converted.getX(), LengthUnit.active(), hardware);
-        double y = LengthUnit.rescale(converted.getY(), LengthUnit.active(), hardware);
-        return new Pose2D(unit, x, y, AngleUnit.RADIANS, converted.getHeading());
+        double x = LengthUnits.toHardware(converted.getX(), followerUnit, hardwareUnit);
+        double y = LengthUnits.toHardware(converted.getY(), followerUnit, hardwareUnit);
+        return new Pose2D(hardwareUnit, x, y, AngleUnit.RADIANS, converted.getHeading());
     }
 
     /**
-     * Returns a pose from a Pose2D and a coordinate system using the active length unit.
+     * Converts an FTC {@link Pose2D} to a Pedro {@link Pose}.
      *
      * @param pose2d the Pose2D object
      * @param coordinateSystem the coordinate system
-     * @return a Pose object with x/y in the active follower length unit and heading in radians
+     * @param hardwareUnit the unit to read from {@code pose2d}
+     * @param followerUnit the unit of the returned Pedro pose
      */
-    public static Pose pose2DToPose(Pose2D pose2d, CoordinateSystem coordinateSystem) {
-        return pose2DToPose(pose2d, coordinateSystem, LengthUnits.activeFtc());
-    }
-
-    public static Pose pose2DToPose(Pose2D pose2d, CoordinateSystem coordinateSystem, DistanceUnit unit) {
-        LengthUnit hardware = LengthUnits.fromFtc(unit);
-        double x = LengthUnit.rescale(pose2d.getX(unit), hardware, LengthUnit.active());
-        double y = LengthUnit.rescale(pose2d.getY(unit), hardware, LengthUnit.active());
+    public static Pose pose2DToPose(
+            Pose2D pose2d,
+            CoordinateSystem coordinateSystem,
+            DistanceUnit hardwareUnit,
+            LengthUnit followerUnit) {
+        double x = LengthUnits.toFollower(pose2d.getX(hardwareUnit), hardwareUnit, followerUnit);
+        double y = LengthUnits.toFollower(pose2d.getY(hardwareUnit), hardwareUnit, followerUnit);
         return new Pose(x, y, pose2d.getHeading(AngleUnit.RADIANS), coordinateSystem);
     }
 }

@@ -100,8 +100,13 @@ public class OctoQuadLocalizer implements Localizer
      */
     public OctoQuadLocalizer(HardwareMap hardwareMap, OctoQuadConstants constants, InitMode initMode)
     {
+        this(hardwareMap, constants, initMode, LengthUnit.INCHES);
+    }
+
+    public OctoQuadLocalizer(HardwareMap hardwareMap, OctoQuadConstants constants, InitMode initMode, LengthUnit followerUnit)
+    {
         octoQuad = hardwareMap.get(OctoQuad.class, constants.hardwareMapName);
-        this.lengthUnit = LengthUnit.active();
+        this.lengthUnit = LengthUnit.requireNonNull(followerUnit);
 
         // If we're not supposed to initialize the hardware, then we're done
         if (initMode == InitMode.ASSUME_EXTERNAL_INITIALIZATION)
