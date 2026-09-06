@@ -12,6 +12,7 @@ import com.pedropathing.util.PoseHistory;
 import com.pedropathing.localization.Localizer;
 import com.pedropathing.geometry.Pose;
 import com.pedropathing.localization.PoseTracker;
+import com.pedropathing.math.LengthUnit;
 import com.pedropathing.geometry.BezierPoint;
 import com.pedropathing.math.MathFunctions;
 import com.pedropathing.paths.Path;
@@ -75,8 +76,7 @@ public class Follower {
      */
     public Follower(FollowerConstants constants, Localizer localizer, Drivetrain drivetrain, PathConstraints pathConstraints) {
         this.constants = constants;
-        constants.applyLengthUnit();
-        this.pathConstraints = pathConstraints.copy().applyLengthUnit();
+        this.pathConstraints = pathConstraints.inUnit(constants.getLengthUnit());
 
         poseTracker = new PoseTracker(localizer);
         errorCalculator = new ErrorCalculator(constants);
@@ -113,7 +113,7 @@ public class Follower {
      * @param drivetrain Drivetrain to use
      */
     public Follower(FollowerConstants constants, Localizer localizer, Drivetrain drivetrain) {
-        this(constants, localizer, drivetrain, PathConstraints.defaultConstraints);
+        this(constants, localizer, drivetrain, PathConstraints.defaultsFor(constants.getLengthUnit()));
     }
 
     public void setCentripetalScaling(double set) {
@@ -690,7 +690,7 @@ public class Follower {
      * @return returns a new PathBuilder object.
      */
     public PathBuilder pathBuilder() {
-        return new PathBuilder(this);
+        return new PathBuilder(this, pathConstraints);
     }
 
     /**
@@ -911,6 +911,13 @@ public class Follower {
     public PathConstraints getConstraints() { return pathConstraints; }
 
     /**
+     * The follower length unit taken from {@link FollowerConstants#getLengthUnit()}.
+     */
+    public LengthUnit getLengthUnit() {
+        return constants.getLengthUnit();
+    }
+
+    /**
      * This returns the FollowerConstants, which are the constants used by the Follower.
      * @return returns the FollowerConstants
      */
@@ -920,7 +927,9 @@ public class Follower {
      * This sets the PathConstraints for the Follower.
      * @param pathConstraints the PathConstraints to set
      */
-    public void setConstraints(PathConstraints pathConstraints) { this.pathConstraints = pathConstraints; }
+    public void setConstraints(PathConstraints pathConstraints) {
+        this.pathConstraints = pathConstraints.inUnit(getLengthUnit());
+    }
 
     /**
      * This returns the Drivetrain used by the Follower.
@@ -1164,6 +1173,7 @@ public class Follower {
 
     private void setPath(Path path) {
         this.currentPath = path;
+        path.setConstraints(path.getConstraints().inUnit(getLengthUnit()));
         currentPath.init();
     }
 

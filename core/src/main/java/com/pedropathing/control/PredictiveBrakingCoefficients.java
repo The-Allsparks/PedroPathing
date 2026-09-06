@@ -54,6 +54,12 @@ public class PredictiveBrakingCoefficients {
         this.kQuadraticFriction = quadraticFriction;
         this.maximumBrakingPower = maximumBrakingPower;
     }
+
+    public PredictiveBrakingCoefficients copy() {
+        PredictiveBrakingCoefficients copy = new PredictiveBrakingCoefficients(P, kLinearBraking, kQuadraticFriction);
+        copy.maximumBrakingPower = maximumBrakingPower;
+        return copy;
+    }
     
     @Override
     public String toString() {

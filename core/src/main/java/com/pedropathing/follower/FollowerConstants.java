@@ -202,8 +202,8 @@ public class FollowerConstants {
     public double mass = 10.65;
 
     /**
-     * Length unit last applied to this object. Look up {@link LengthUnit#active()} for the
-     * process-wide unit; this field is the rescale baseline.
+     * Length unit of dimensional fields on this object. Defaults are generated for this unit
+     * from {@link LengthAnchors}; fluent setters write values already expressed in this unit.
      * Default Value: {@link LengthUnit#INCHES}
      */
     public LengthUnit lengthUnit = LengthUnit.INCHES;
@@ -260,7 +260,16 @@ public class FollowerConstants {
 
     public FollowerConstants() {
         defaults();
-        applyLengthUnit();
+    }
+
+    /**
+     * Inch-authored Pedro defaults converted exactly once into {@code unit}.
+     * User-supplied tuned values should be set after this factory, already in {@code unit}.
+     */
+    public static FollowerConstants defaultsFor(LengthUnit unit) {
+        FollowerConstants constants = new FollowerConstants();
+        constants.convertTo(LengthUnit.requireNonNull(unit));
+        return constants;
     }
 
     public FollowerConstants translationalPIDFCoefficients(PIDFCoefficients translationalPIDFCoefficients) {
@@ -367,9 +376,13 @@ public class FollowerConstants {
         return this;
     }
 
+    /**
+     * Convert dimensional defaults and previously set tunings from this object's stored unit into
+     * {@code lengthUnit}. Does not mutate process-wide state. Call this before setting tunings that
+     * are already in {@code lengthUnit}, or use {@link #defaultsFor(LengthUnit)}.
+     */
     public FollowerConstants lengthUnit(LengthUnit lengthUnit) {
-        LengthUnit.setActive(lengthUnit);
-        return applyLengthUnit();
+        return convertTo(lengthUnit);
     }
 
     public FollowerConstants forwardZeroPowerAcceleration(double forwardZeroPowerAcceleration) {
@@ -588,32 +601,70 @@ public class FollowerConstants {
     }
 
     public LengthUnit getLengthUnit() {
-        return LengthUnit.active();
+        return lengthUnit;
     }
 
     public void setLengthUnit(LengthUnit lengthUnit) {
-        LengthUnit.setActive(lengthUnit);
-        applyLengthUnit();
+        convertTo(lengthUnit);
     }
 
     /**
-     * Rescale length-dimensioned values from the last applied unit into {@link LengthUnit#active()}.
-     * Inch originals live in {@link LengthAnchors}. Safe to call twice with the same unit.
+     * Convert dimensional values from this object's stored unit into {@code newUnit}.
+     * Safe to call twice with the same unit. Mutates this object; prefer {@link #inUnit(LengthUnit)}
+     * when the caller must keep the original.
      */
-    public FollowerConstants applyLengthUnit() {
-        applyLengthUnit(LengthUnit.active());
-        return this;
-    }
-
-    public FollowerConstants applyLengthUnit(LengthUnit newUnit) {
-        if (newUnit == null) {
-            throw new IllegalArgumentException("length unit must not be null");
-        }
+    public FollowerConstants convertTo(LengthUnit newUnit) {
+        LengthUnit.requireNonNull(newUnit);
         if (newUnit != this.lengthUnit) {
             rescaleLengthQuantities(this.lengthUnit, newUnit);
             this.lengthUnit = newUnit;
         }
         return this;
+    }
+
+    /**
+     * Return a copy whose dimensional values are expressed in {@code newUnit}. This object is not
+     * mutated.
+     */
+    public FollowerConstants inUnit(LengthUnit newUnit) {
+        return copy().convertTo(newUnit);
+    }
+
+    public FollowerConstants copy() {
+        FollowerConstants copy = new FollowerConstants();
+        copy.coefficientsTranslationalPIDF = coefficientsTranslationalPIDF.copy();
+        copy.integralTranslational = integralTranslational.copy();
+        copy.coefficientsHeadingPIDF = coefficientsHeadingPIDF.copy();
+        copy.coefficientsDrivePIDF = coefficientsDrivePIDF.copy();
+        copy.coefficientsSecondaryTranslationalPIDF = coefficientsSecondaryTranslationalPIDF.copy();
+        copy.integralSecondaryTranslational = integralSecondaryTranslational.copy();
+        copy.headingPIDFSwitch = headingPIDFSwitch;
+        copy.coefficientsSecondaryHeadingPIDF = coefficientsSecondaryHeadingPIDF.copy();
+        copy.drivePIDFSwitch = drivePIDFSwitch;
+        copy.coefficientsSecondaryDrivePIDF = coefficientsSecondaryDrivePIDF.copy();
+        copy.predictiveBrakingCoefficients = predictiveBrakingCoefficients.copy();
+        copy.usePredictiveBraking = usePredictiveBraking;
+        copy.holdPointTranslationalScaling = holdPointTranslationalScaling;
+        copy.holdPointHeadingScaling = holdPointHeadingScaling;
+        copy.BEZIER_CURVE_SEARCH_LIMIT = BEZIER_CURVE_SEARCH_LIMIT;
+        copy.useSecondaryTranslationalPIDF = useSecondaryTranslationalPIDF;
+        copy.useSecondaryHeadingPIDF = useSecondaryHeadingPIDF;
+        copy.useSecondaryDrivePIDF = useSecondaryDrivePIDF;
+        copy.translationalPIDFSwitch = translationalPIDFSwitch;
+        copy.turnHeadingErrorThreshold = turnHeadingErrorThreshold;
+        copy.centripetalScaling = centripetalScaling;
+        copy.automaticHoldEnd = automaticHoldEnd;
+        copy.mass = mass;
+        copy.lengthUnit = lengthUnit;
+        copy.forwardZeroPowerAcceleration = forwardZeroPowerAcceleration;
+        copy.lateralZeroPowerAcceleration = lateralZeroPowerAcceleration;
+        copy.driveKalmanFilterModelCovariance = driveKalmanFilterModelCovariance;
+        copy.driveKalmanFilterDataCovariance = driveKalmanFilterDataCovariance;
+        copy.stuckVelocity = stuckVelocity;
+        copy.stuckTValueLow = stuckTValueLow;
+        copy.stuckTValueHigh = stuckTValueHigh;
+        copy.stuckTimeout = stuckTimeout;
+        return copy;
     }
 
     private void rescaleLengthQuantities(LengthUnit from, LengthUnit to) {
@@ -631,20 +682,25 @@ public class FollowerConstants {
         rescaleLengthPid(integralSecondaryTranslational, from, to);
         rescaleLengthPid(coefficientsDrivePIDF, from, to);
         rescaleLengthPid(coefficientsSecondaryDrivePIDF, from, to);
+        predictiveBrakingCoefficients.P = LengthUnit.rescaleInverse(predictiveBrakingCoefficients.P, from, to);
+        predictiveBrakingCoefficients.kQuadraticFriction = LengthUnit.rescaleInverse(predictiveBrakingCoefficients.kQuadraticFriction, from, to);
     }
 
+    /**
+     * Scale P/I/D for a length- or velocity-error PID whose output is dimensionless motor power.
+     * F is multiplied by a dimensionless feedforward input ({@code 1} or {@code signum}) and is
+     * not rescaled. Filtered time constants are not rescaled.
+     */
     private static void rescaleLengthPid(PIDFCoefficients coefficients, LengthUnit from, LengthUnit to) {
         coefficients.P = LengthUnit.rescaleInverse(coefficients.P, from, to);
         coefficients.I = LengthUnit.rescaleInverse(coefficients.I, from, to);
         coefficients.D = LengthUnit.rescaleInverse(coefficients.D, from, to);
-        coefficients.F = LengthUnit.rescaleInverse(coefficients.F, from, to);
     }
 
     private static void rescaleLengthPid(FilteredPIDFCoefficients coefficients, LengthUnit from, LengthUnit to) {
         coefficients.P = LengthUnit.rescaleInverse(coefficients.P, from, to);
         coefficients.I = LengthUnit.rescaleInverse(coefficients.I, from, to);
         coefficients.D = LengthUnit.rescaleInverse(coefficients.D, from, to);
-        coefficients.F = LengthUnit.rescaleInverse(coefficients.F, from, to);
     }
 
     public double getForwardZeroPowerAcceleration() {

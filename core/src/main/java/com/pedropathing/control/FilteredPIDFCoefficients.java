@@ -44,4 +44,8 @@ public class FilteredPIDFCoefficients {
     public String toString() {
         return "P: " + P + ", I: " + I + ", D: " + D + ", T: " + T + ", F: " + F;
     }
+
+    public FilteredPIDFCoefficients copy() {
+        return new FilteredPIDFCoefficients(P, I, D, T, F);
+    }
 }

@@ -37,7 +37,12 @@ public class SwerveConstants {
 
     public SwerveConstants() {
         defaults();
-        applyLengthUnit();
+    }
+
+    public static SwerveConstants defaultsFor(LengthUnit unit) {
+        SwerveConstants constants = new SwerveConstants();
+        constants.convertTo(LengthUnit.requireNonNull(unit));
+        return constants;
     }
 
     /**
@@ -68,20 +73,41 @@ public class SwerveConstants {
         return this;
     }
 
-    public SwerveConstants applyLengthUnit() {
-        return applyLengthUnit(LengthUnit.active());
+    public SwerveConstants lengthUnit(LengthUnit unit) {
+        return convertTo(unit);
     }
 
-    public SwerveConstants applyLengthUnit(LengthUnit unit) {
-        if (unit == null) {
-            throw new IllegalArgumentException("length unit must not be null");
-        }
+    public SwerveConstants convertTo(LengthUnit unit) {
+        LengthUnit.requireNonNull(unit);
         if (unit != appliedLengthUnit) {
             xVelocity = LengthUnit.rescale(xVelocity, appliedLengthUnit, unit);
             yVelocity = LengthUnit.rescale(yVelocity, appliedLengthUnit, unit);
             appliedLengthUnit = unit;
         }
         return this;
+    }
+
+    public SwerveConstants inUnit(LengthUnit unit) {
+        return copy().convertTo(unit);
+    }
+
+    public LengthUnit getLengthUnit() {
+        return appliedLengthUnit;
+    }
+
+    public SwerveConstants copy() {
+        SwerveConstants copy = new SwerveConstants();
+        copy.xVelocity = xVelocity;
+        copy.yVelocity = yVelocity;
+        copy.appliedLengthUnit = appliedLengthUnit;
+        copy.useBrakeModeInTeleOp = useBrakeModeInTeleOp;
+        copy.maxPower = maxPower;
+        copy.useVoltageCompensation = useVoltageCompensation;
+        copy.nominalVoltage = nominalVoltage;
+        copy.staticFrictionCoefficient = staticFrictionCoefficient;
+        copy.epsilon = epsilon;
+        copy.zeroPowerBehavior = zeroPowerBehavior;
+        return copy;
     }
 
     /**

@@ -40,39 +40,82 @@ public class MecanumConstants {
 
     public MecanumConstants() {
         defaults();
-        applyLengthUnit();
+    }
+
+    public static MecanumConstants defaultsFor(LengthUnit unit) {
+        MecanumConstants constants = new MecanumConstants();
+        constants.convertTo(LengthUnit.requireNonNull(unit));
+        return constants;
     }
 
     public MecanumConstants xVelocity(double xVelocity) {
         this.xVelocity = xVelocity;
+        updateDriveVector();
         return this;
     }
 
     public MecanumConstants yVelocity(double yVelocity) {
         this.yVelocity = yVelocity;
+        updateDriveVector();
         return this;
     }
 
     /**
-     * Rescale {@link #xVelocity} / {@link #yVelocity} from the last applied unit into
-     * {@link LengthUnit#active()}. Inch originals are {@link LengthAnchors#MECANUM_X_VELOCITY}.
+     * Convert velocity defaults and previously set tunings from this object's stored unit into
+     * {@code unit}. Does not mutate process-wide state.
      */
-    public MecanumConstants applyLengthUnit() {
-        return applyLengthUnit(LengthUnit.active());
+    public MecanumConstants lengthUnit(LengthUnit unit) {
+        return convertTo(unit);
     }
 
-    public MecanumConstants applyLengthUnit(LengthUnit unit) {
-        if (unit == null) {
-            throw new IllegalArgumentException("length unit must not be null");
-        }
+    public MecanumConstants convertTo(LengthUnit unit) {
+        LengthUnit.requireNonNull(unit);
         if (unit != appliedLengthUnit) {
             xVelocity = LengthUnit.rescale(xVelocity, appliedLengthUnit, unit);
             yVelocity = LengthUnit.rescale(yVelocity, appliedLengthUnit, unit);
             appliedLengthUnit = unit;
-            convertToPolar = Pose.cartesianToPolar(xVelocity, -yVelocity);
-            frontLeftVector = new Vector(convertToPolar[0], convertToPolar[1]).normalize();
+            updateDriveVector();
         }
         return this;
+    }
+
+    /**
+     * Return a copy whose velocities are expressed in {@code unit}. This object is not mutated.
+     */
+    public MecanumConstants inUnit(LengthUnit unit) {
+        return copy().convertTo(unit);
+    }
+
+    public LengthUnit getLengthUnit() {
+        return appliedLengthUnit;
+    }
+
+    public MecanumConstants copy() {
+        MecanumConstants copy = new MecanumConstants();
+        copy.xVelocity = xVelocity;
+        copy.yVelocity = yVelocity;
+        copy.appliedLengthUnit = appliedLengthUnit;
+        copy.maxPower = maxPower;
+        copy.leftFrontMotorName = leftFrontMotorName;
+        copy.leftRearMotorName = leftRearMotorName;
+        copy.rightFrontMotorName = rightFrontMotorName;
+        copy.rightRearMotorName = rightRearMotorName;
+        copy.leftFrontMotorDirection = leftFrontMotorDirection;
+        copy.leftRearMotorDirection = leftRearMotorDirection;
+        copy.rightFrontMotorDirection = rightFrontMotorDirection;
+        copy.rightRearMotorDirection = rightRearMotorDirection;
+        copy.motorCachingThreshold = motorCachingThreshold;
+        copy.useBrakeModeInTeleOp = useBrakeModeInTeleOp;
+        copy.useVoltageCompensation = useVoltageCompensation;
+        copy.nominalVoltage = nominalVoltage;
+        copy.staticFrictionCoefficient = staticFrictionCoefficient;
+        copy.updateDriveVector();
+        return copy;
+    }
+
+    private void updateDriveVector() {
+        convertToPolar = Pose.cartesianToPolar(xVelocity, -yVelocity);
+        frontLeftVector = new Vector(convertToPolar[0], convertToPolar[1]).normalize();
     }
 
     public MecanumConstants maxPower(double maxPower) {
@@ -151,6 +194,7 @@ public class MecanumConstants {
 
     public void setXVelocity(double xVelocity) {
         this.xVelocity = xVelocity;
+        updateDriveVector();
     }
 
     public double getYVelocity() {
@@ -159,6 +203,7 @@ public class MecanumConstants {
 
     public void setYVelocity(double yVelocity) {
         this.yVelocity = yVelocity;
+        updateDriveVector();
     }
 
     public Vector getFrontLeftVector() {

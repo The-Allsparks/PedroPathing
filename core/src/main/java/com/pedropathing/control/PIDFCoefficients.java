@@ -58,4 +58,8 @@ public class PIDFCoefficients implements PIDFCoefficientSupplier {
     public PIDFCoefficients get(double error) {
         return this;
     }
+
+    public PIDFCoefficients copy() {
+        return new PIDFCoefficients(P, I, D, F);
+    }
 }

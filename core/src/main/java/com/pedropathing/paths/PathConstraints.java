@@ -6,17 +6,17 @@ import com.pedropathing.math.LengthUnit;
 public final class PathConstraints {
     /**
      * When the robot is at the end of its current Path or PathChain and the velocity goes below
-     * this value, then end the Path. This is in follower length units/second.
+     * this value, then end the Path. This is in this object's {@link #getLengthUnit()} per second.
      * This can be custom set for each Path.
-     * Default Value: 0.1
+     * Default Value: 0.1 inches/second
      */
     private double velocityConstraint;
 
     /**
      * When the robot is at the end of its current Path or PathChain and the translational error
-     * goes below this value, then end the Path. This is in follower length units.
+     * goes below this value, then end the Path. This is in this object's {@link #getLengthUnit()}.
      * This can be custom set for each Path.
-     * Default Value: 0.1
+     * Default Value: 0.1 inches
      */
     private double translationalConstraint;
 
@@ -65,9 +65,28 @@ public final class PathConstraints {
      * The number of steps in searching for the closest point
      */
     private int BEZIER_CURVE_SEARCH_LIMIT;
-    private LengthUnit appliedLengthUnit = LengthUnit.INCHES;
 
-    public PathConstraints(double tValueConstraint, double velocityConstraint, double translationalConstraint, double headingConstraint, double timeoutConstraint, double brakingStrength, int BEZIER_CURVE_SEARCH_LIMIT, double brakingStart) {
+    /**
+     * Unit of {@link #velocityConstraint} and {@link #translationalConstraint}.
+     * Setters write values already expressed in this unit.
+     */
+    private LengthUnit lengthUnit;
+
+    /**
+     * Construct constraints whose velocity and translational values are already in {@code unit}.
+     * These values are stored as-is and are not converted again.
+     */
+    public PathConstraints(
+            LengthUnit unit,
+            double tValueConstraint,
+            double velocityConstraint,
+            double translationalConstraint,
+            double headingConstraint,
+            double timeoutConstraint,
+            double brakingStrength,
+            int BEZIER_CURVE_SEARCH_LIMIT,
+            double brakingStart) {
+        this.lengthUnit = LengthUnit.requireNonNull(unit);
         this.tValueConstraint = tValueConstraint;
         this.velocityConstraint = velocityConstraint;
         this.translationalConstraint = translationalConstraint;
@@ -78,32 +97,120 @@ public final class PathConstraints {
         this.BEZIER_CURVE_SEARCH_LIMIT = BEZIER_CURVE_SEARCH_LIMIT;
     }
 
+    /**
+     * Construct constraints whose velocity and translational values are in inches.
+     * Prefer {@link #inUnit} or {@link #defaultsFor(LengthUnit)} when using another follower unit.
+     */
+    public PathConstraints(double tValueConstraint, double velocityConstraint, double translationalConstraint, double headingConstraint, double timeoutConstraint, double brakingStrength, int BEZIER_CURVE_SEARCH_LIMIT, double brakingStart) {
+        this(LengthUnit.INCHES, tValueConstraint, velocityConstraint, translationalConstraint, headingConstraint, timeoutConstraint, brakingStrength, BEZIER_CURVE_SEARCH_LIMIT, brakingStart);
+    }
+
+    /**
+     * Construct constraints with caller t-value, timeout, and braking values. Velocity and
+     * translational defaults are the inch-authored Pedro anchors and are labeled inches.
+     * Convert with {@link #inUnit(LengthUnit)} when attaching to a non-inch follower.
+     */
     public PathConstraints(double tValueConstraint, double timeoutConstraint, double brakingStrength, double brakingStart) {
-        this(tValueConstraint, LengthAnchors.PATH_VELOCITY_CONSTRAINT, LengthAnchors.PATH_TRANSLATIONAL_CONSTRAINT, 0.007, timeoutConstraint, brakingStrength, 10, brakingStart);
-        applyLengthUnit();
+        this(LengthUnit.INCHES, tValueConstraint, LengthAnchors.PATH_VELOCITY_CONSTRAINT, LengthAnchors.PATH_TRANSLATIONAL_CONSTRAINT, 0.007, timeoutConstraint, brakingStrength, 10, brakingStart);
     }
 
+    /**
+     * Construct constraints with caller t-value and timeout. Velocity and translational defaults
+     * are the inch-authored Pedro anchors and are labeled inches.
+     */
     public PathConstraints(double tValueConstraint, double timeoutConstraint) {
-        this(tValueConstraint, LengthAnchors.PATH_VELOCITY_CONSTRAINT, LengthAnchors.PATH_TRANSLATIONAL_CONSTRAINT, 0.007, timeoutConstraint, 1, 10, 1);
-        applyLengthUnit();
+        this(tValueConstraint, timeoutConstraint, 1, 1);
     }
 
-    public static PathConstraints defaultConstraints = new PathConstraints(0.995, LengthAnchors.PATH_VELOCITY_CONSTRAINT, LengthAnchors.PATH_TRANSLATIONAL_CONSTRAINT, 0.007, 100, 1, 10, 1);
+    /**
+     * Inch-authored Pedro default constraints. Unit-aware code must not mutate this object.
+     * Use {@link #defaultsFor(LengthUnit)} to get a correctly scaled copy.
+     */
+    public static PathConstraints defaultConstraints = new PathConstraints(
+            LengthUnit.INCHES,
+            0.995,
+            LengthAnchors.PATH_VELOCITY_CONSTRAINT,
+            LengthAnchors.PATH_TRANSLATIONAL_CONSTRAINT,
+            0.007,
+            100,
+            1,
+            10,
+            1);
 
-    public PathConstraints applyLengthUnit() {
-        return applyLengthUnit(LengthUnit.active());
+    /**
+     * Values already expressed in {@code unit}. They are stored as-is.
+     */
+    public static PathConstraints inUnit(
+            LengthUnit unit,
+            double tValueConstraint,
+            double velocityConstraint,
+            double translationalConstraint,
+            double headingConstraint,
+            double timeoutConstraint,
+            double brakingStrength,
+            int searchLimit,
+            double brakingStart) {
+        return new PathConstraints(
+                unit,
+                tValueConstraint,
+                velocityConstraint,
+                translationalConstraint,
+                headingConstraint,
+                timeoutConstraint,
+                brakingStrength,
+                searchLimit,
+                brakingStart);
     }
 
-    public PathConstraints applyLengthUnit(LengthUnit unit) {
-        if (unit == null) {
-            throw new IllegalArgumentException("length unit must not be null");
+    /**
+     * Values authored in inches.
+     */
+    public static PathConstraints fromInches(
+            double tValueConstraint,
+            double velocityConstraint,
+            double translationalConstraint,
+            double headingConstraint,
+            double timeoutConstraint,
+            double brakingStrength,
+            int searchLimit,
+            double brakingStart) {
+        return inUnit(
+                LengthUnit.INCHES,
+                tValueConstraint,
+                velocityConstraint,
+                translationalConstraint,
+                headingConstraint,
+                timeoutConstraint,
+                brakingStrength,
+                searchLimit,
+                brakingStart);
+    }
+
+    /**
+     * Inch-authored Pedro defaults converted exactly once into {@code unit}.
+     */
+    public static PathConstraints defaultsFor(LengthUnit unit) {
+        return defaultConstraints.inUnit(LengthUnit.requireNonNull(unit));
+    }
+
+    /**
+     * Return a copy whose velocity and translational constraints are expressed in {@code unit}.
+     * Conversion uses this object's stored source unit. Applying twice with the same unit is a
+     * no-op besides copying. This object is not mutated.
+     */
+    public PathConstraints inUnit(LengthUnit unit) {
+        LengthUnit.requireNonNull(unit);
+        PathConstraints copy = copy();
+        if (unit != copy.lengthUnit) {
+            copy.velocityConstraint = LengthUnit.rescale(copy.velocityConstraint, copy.lengthUnit, unit);
+            copy.translationalConstraint = LengthUnit.rescale(copy.translationalConstraint, copy.lengthUnit, unit);
+            copy.lengthUnit = unit;
         }
-        if (unit != appliedLengthUnit) {
-            velocityConstraint = LengthUnit.rescale(velocityConstraint, appliedLengthUnit, unit);
-            translationalConstraint = LengthUnit.rescale(translationalConstraint, appliedLengthUnit, unit);
-            appliedLengthUnit = unit;
-        }
-        return this;
+        return copy;
+    }
+
+    public LengthUnit getLengthUnit() {
+        return lengthUnit;
     }
 
     public double getVelocityConstraint() {
@@ -138,6 +245,10 @@ public final class PathConstraints {
         return BEZIER_CURVE_SEARCH_LIMIT;
     }
 
+    /**
+     * Replace the shared inch-authored default. Prefer {@link #defaultsFor(LengthUnit)} in
+     * unit-aware code so constructing one follower cannot change future paths.
+     */
     public static void setDefaultConstraints(PathConstraints defaultConstraints) {
         PathConstraints.defaultConstraints = defaultConstraints;
     }
@@ -162,6 +273,9 @@ public final class PathConstraints {
         this.timeoutConstraint = timeoutConstraint;
     }
 
+    /**
+     * Set the translational end constraint in this object's {@link #getLengthUnit()}.
+     */
     public void setTranslationalConstraint(double translationalConstraint) {
         this.translationalConstraint = translationalConstraint;
     }
@@ -170,13 +284,23 @@ public final class PathConstraints {
         this.tValueConstraint = tValueConstraint;
     }
 
+    /**
+     * Set the velocity end constraint in this object's {@link #getLengthUnit()} per second.
+     */
     public void setVelocityConstraint(double velocityConstraint) {
         this.velocityConstraint = velocityConstraint;
     }
 
     public PathConstraints copy() {
-        PathConstraints copy = new PathConstraints(tValueConstraint, velocityConstraint, translationalConstraint, headingConstraint, timeoutConstraint, brakingStrength, BEZIER_CURVE_SEARCH_LIMIT, brakingStart);
-        copy.appliedLengthUnit = this.appliedLengthUnit;
-        return copy;
+        return new PathConstraints(
+                lengthUnit,
+                tValueConstraint,
+                velocityConstraint,
+                translationalConstraint,
+                headingConstraint,
+                timeoutConstraint,
+                brakingStrength,
+                BEZIER_CURVE_SEARCH_LIMIT,
+                brakingStart);
     }
 }
