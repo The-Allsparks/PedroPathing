@@ -224,6 +224,7 @@ public class FollowerBuilder {
     }
 
     public FollowerBuilder pinpointLocalizer(PinpointConstants lConstants) {
+        lConstants.validate();
         return setLocalizer(new PinpointLocalizer(hardwareMap, lConstants));
     }
 

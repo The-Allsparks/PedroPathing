@@ -4,6 +4,9 @@ import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
 import android.os.Build;
 
+import com.pedropathing.ftc.HardwareLengths;
+import com.pedropathing.math.LengthUnit;
+import com.pedropathing.math.PedroUnits;
 import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
 
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
@@ -19,15 +22,19 @@ import java.util.OptionalDouble;
 @TargetApi(Build.VERSION_CODES.N)
 public class PinpointConstants {
 
+    static final double DEFAULT_FORWARD_POD_Y = 1.0;
+    static final double DEFAULT_STRAFE_POD_X = -2.5;
+    static final double MAX_POD_OFFSET_INCHES = 24.0;
+
     /** The Y Offset of the Forward Encoder (Deadwheel) from the center of the robot in DistanceUnit
      * @see #distanceUnit
      * Default Value: 1 */
-    public  double forwardPodY = 1;
+    public  double forwardPodY = DEFAULT_FORWARD_POD_Y;
 
     /** The X Offset of the Strafe Encoder (Deadwheel) from the center of the robot in DistanceUnit
      * @see #distanceUnit
      * Default Value: -2.5 */
-    public  double strafePodX = -2.5;
+    public  double strafePodX = DEFAULT_STRAFE_POD_X;
 
     /** The Unit of Distance that the Pinpoint uses to measure distance
      * Default Value: DistanceUnit.INCH */
@@ -57,6 +64,9 @@ public class PinpointConstants {
      * Default Value: GoBildaPinpointDriver.EncoderDirection.FORWARD */
     public  GoBildaPinpointDriver.EncoderDirection strafeEncoderDirection = GoBildaPinpointDriver.EncoderDirection.FORWARD;
 
+    private boolean forwardPodYInCurrentUnit = true;
+    private boolean strafePodXInCurrentUnit = true;
+
     /**
      * This creates a new PinpointConstants with default values.
      */
@@ -66,17 +76,117 @@ public class PinpointConstants {
 
     public PinpointConstants forwardPodY(double forwardPodY) {
         this.forwardPodY = forwardPodY;
+        this.forwardPodYInCurrentUnit = true;
         return this;
     }
 
     public PinpointConstants strafePodX(double strafePodX) {
         this.strafePodX = strafePodX;
+        this.strafePodXInCurrentUnit = true;
         return this;
     }
 
+    /**
+     * Sets Pinpoint's hardware {@link DistanceUnit} without converting pod offsets.
+     * After a unit change, set {@link #forwardPodY(double)} and {@link #strafePodX(double)}
+     * in that unit, or use {@link #distanceUnit(DistanceUnit, boolean) distanceUnit(unit, true)}
+     * to convert the previous measurements. {@link #validate()} / {@code FollowerBuilder.pinpointLocalizer}
+     * reject a unit change that still has the inch defaults.
+     */
     public PinpointConstants distanceUnit(DistanceUnit distanceUnit) {
-        this.distanceUnit = distanceUnit;
+        return distanceUnit(distanceUnit, false);
+    }
+
+    /**
+     * Sets Pinpoint's hardware {@link DistanceUnit}.
+     *
+     * @param convertExistingMeasurements if true, convert pod offsets and a custom encoder
+     *         resolution from the previous unit into {@code distanceUnit}
+     */
+    public PinpointConstants distanceUnit(DistanceUnit distanceUnit, boolean convertExistingMeasurements) {
+        DistanceUnit next = HardwareLengths.requireHardwareUnit(distanceUnit);
+        if (this.distanceUnit != next) {
+            if (convertExistingMeasurements) {
+                convertMeasurements(this.distanceUnit, next);
+                forwardPodYInCurrentUnit = true;
+                strafePodXInCurrentUnit = true;
+            } else {
+                forwardPodYInCurrentUnit = false;
+                strafePodXInCurrentUnit = false;
+            }
+        }
+        this.distanceUnit = next;
         return this;
+    }
+
+    /**
+     * Convert pod offsets (and custom ticks-per-unit, if set) into the FTC unit that matches
+     * TeamCode length. Pinpoint has no feet unit; feet stays inches.
+     */
+    public PinpointConstants alignDistanceUnit(PedroUnits units) {
+        if (units == null) {
+            throw new IllegalArgumentException("units must not be null");
+        }
+        return alignDistanceUnit(units.lengthUnit());
+    }
+
+    public PinpointConstants alignDistanceUnit(LengthUnit lengthUnit) {
+        return distanceUnit(HardwareLengths.toDistanceUnit(lengthUnit), true);
+    }
+
+    /**
+     * Checks that pod offsets match {@link #distanceUnit}. Called by
+     * {@code FollowerBuilder.pinpointLocalizer}.
+     */
+    public void validate() {
+        HardwareLengths.requireHardwareUnit(distanceUnit);
+        boolean forwardReviewed = forwardPodYInCurrentUnit || forwardPodY != DEFAULT_FORWARD_POD_Y;
+        boolean strafeReviewed = strafePodXInCurrentUnit || strafePodX != DEFAULT_STRAFE_POD_X;
+        if (!forwardReviewed || !strafeReviewed) {
+            throw new IllegalStateException(
+                    "Pinpoint distanceUnit is "
+                            + distanceUnit.name()
+                            + ", but pod offsets were not set in that unit. Call forwardPodY(...) and "
+                            + "strafePodX(...) with "
+                            + distanceUnit.name()
+                            + " measurements, or distanceUnit("
+                            + distanceUnit.name()
+                            + ", true) / alignDistanceUnit(...) to convert the previous values.");
+        }
+        checkOffsetMagnitude("forwardPodY", forwardPodY);
+        checkOffsetMagnitude("strafePodX", strafePodX);
+    }
+
+    private void convertMeasurements(DistanceUnit from, DistanceUnit to) {
+        forwardPodY = to.fromUnit(from, forwardPodY);
+        strafePodX = to.fromUnit(from, strafePodX);
+        if (customEncoderResolution.isPresent()) {
+            double ticksPerOld = customEncoderResolution.getAsDouble();
+            double oldUnitsPerNew = from.fromUnit(to, 1.0);
+            customEncoderResolution = OptionalDouble.of(ticksPerOld * oldUnitsPerNew);
+        }
+    }
+
+    private void checkOffsetMagnitude(String name, double value) {
+        if (Double.isNaN(value) || Double.isInfinite(value)) {
+            throw new IllegalStateException("Pinpoint " + name + " must be a finite number.");
+        }
+        double inches = Math.abs(HardwareLengths.toInches(value, distanceUnit));
+        if (inches > MAX_POD_OFFSET_INCHES) {
+            throw new IllegalStateException(
+                    "Pinpoint "
+                            + name
+                            + " "
+                            + value
+                            + " "
+                            + distanceUnit.name()
+                            + " is "
+                            + inches
+                            + " inches from center, which is larger than a typical FTC robot. "
+                            + "Offsets must be in "
+                            + distanceUnit.name()
+                            + ".");
+        }
     }
 
     public PinpointConstants hardwareMapName(String hardwareMapName) {
@@ -110,8 +220,8 @@ public class PinpointConstants {
     }
 
     public void defaults() {
-        forwardPodY = 1;
-        strafePodX = -2.5;
+        forwardPodY = DEFAULT_FORWARD_POD_Y;
+        strafePodX = DEFAULT_STRAFE_POD_X;
         distanceUnit = DistanceUnit.INCH;
         hardwareMapName = "pinpoint";
         yawScalar = OptionalDouble.empty();
@@ -119,5 +229,7 @@ public class PinpointConstants {
         customEncoderResolution = OptionalDouble.empty();
         forwardEncoderDirection = GoBildaPinpointDriver.EncoderDirection.REVERSED;
         strafeEncoderDirection = GoBildaPinpointDriver.EncoderDirection.FORWARD;
+        forwardPodYInCurrentUnit = true;
+        strafePodXInCurrentUnit = true;
     }
 }

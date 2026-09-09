@@ -43,4 +43,23 @@ public final class HardwareLengths {
         }
         return hardwareUnit;
     }
+
+    /**
+     * Closest FTC {@link DistanceUnit} for a TeamCode {@link LengthUnit}. Pinpoint and OTOS have
+     * no feet unit; feet maps to inches so hardware offsets stay in a device-supported unit.
+     */
+    public static DistanceUnit toDistanceUnit(LengthUnit lengthUnit) {
+        LengthUnit.requireNonNull(lengthUnit);
+        switch (lengthUnit) {
+            case CENTIMETERS:
+                return DistanceUnit.CM;
+            case METERS:
+                return DistanceUnit.METER;
+            case INCHES:
+            case FEET:
+                return DistanceUnit.INCH;
+            default:
+                throw new IllegalArgumentException("unsupported length unit: " + lengthUnit);
+        }
+    }
 }

@@ -164,11 +164,26 @@ User-facing feet/degrees → Pedro inches/radians → hardware millimeters (or w
 ```java
 new FollowerBuilder(constants, hardwareMap)
         .setUnits(LengthUnit.FEET, MassUnit.POUNDS, AngularUnit.DEGREES)
-        .pinpointLocalizer(new PinpointConstants().distanceUnit(DistanceUnit.MM))
+        .pinpointLocalizer(new PinpointConstants().distanceUnit(DistanceUnit.MM, true))
         .build();
 ```
 
-Pod offsets stay in Pinpoint’s hardware unit.
+Pod offsets stay in Pinpoint’s hardware unit. Changing `distanceUnit` without converting or re-entering those offsets is rejected when the localizer is attached:
+
+```java
+new PinpointConstants()
+        .distanceUnit(DistanceUnit.CM) // throws unless offsets are set in cm
+        .forwardPodY(2.54)
+        .strafePodX(-6.35);
+
+new PinpointConstants()
+        .distanceUnit(DistanceUnit.CM, true); // converts the previous inch offsets
+
+new PinpointConstants()
+        .alignDistanceUnit(LengthUnit.CENTIMETERS); // same conversion toward TeamCode length
+```
+
+`FollowerBuilder.pinpointLocalizer(...)` calls `PinpointConstants.validate()`. Pinpoint in centimeters with TeamCode in centimeters is valid; the two layers still do not have to match.
 
 **OTOS in inches, user-facing centimeters**
 
@@ -224,7 +239,7 @@ Panels Field drawing uses Pedro inches. Draw with `follower.getInternalPose()`. 
 * Encoder localizers still use process-wide static tick-to-distance fields (upstream pattern). Two encoder localizers in one process can overwrite those statics.
 * Kalman filters initialize variance to `1` (upstream).
 * `HeadingInterpolator.facingPoint(x, y)` and custom interpolators that read path geometry still use canonical path coordinates. Prefer `PathBuilder.setFacingPointHeadingInterpolation(x, y)` after `.setUnits(...)`.
-* Pinpoint offsets follow Pinpoint `distanceUnit`. OTOS offsets follow OTOS `linearUnit`. OctoQuad ticks-per-mm stay millimeters.
+* Pinpoint offsets follow Pinpoint `distanceUnit`. Changing that unit without converting or re-entering offsets fails `validate()`. OTOS offsets follow OTOS `linearUnit`. OctoQuad ticks-per-mm stay millimeters.
 
 ## Upstream synchronization
 
