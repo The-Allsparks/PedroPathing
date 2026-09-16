@@ -2,6 +2,8 @@ package com.pedropathing.ftc;
 
 import static org.junit.Assert.assertEquals;
 
+import com.pedropathing.math.LengthUnit;
+
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.junit.Test;
 
@@ -34,5 +36,13 @@ public class HardwareLengthsTest {
     public void millimeterHelpers() {
         assertEquals(1.0, HardwareLengths.millimetersToInches(25.4), EPS);
         assertEquals(25.4, HardwareLengths.inchesToMillimeters(1.0), EPS);
+    }
+
+    @Test
+    public void teamCodeLengthMapsToHardwareDistanceUnit() {
+        assertEquals(DistanceUnit.INCH, HardwareLengths.toDistanceUnit(LengthUnit.INCHES));
+        assertEquals(DistanceUnit.INCH, HardwareLengths.toDistanceUnit(LengthUnit.FEET));
+        assertEquals(DistanceUnit.CM, HardwareLengths.toDistanceUnit(LengthUnit.CENTIMETERS));
+        assertEquals(DistanceUnit.METER, HardwareLengths.toDistanceUnit(LengthUnit.METERS));
     }
 }
