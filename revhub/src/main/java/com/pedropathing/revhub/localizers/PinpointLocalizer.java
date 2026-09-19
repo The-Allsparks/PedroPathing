@@ -2,6 +2,7 @@ package com.pedropathing.revhub.localizers;
 
 import com.pedropathing.localization.Localizer;
 import com.pedropathing.localization.MotionState;
+import com.pedropathing.localization.MotionStateSource;
 import com.pedropathing.math.Pose;
 import com.pedropathing.math.Velocity;
 import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
@@ -22,9 +23,10 @@ public class PinpointLocalizer implements Localizer {
 
     private final GoBildaPinpointDriver pinpoint;
     private final DistanceUnit globalDistanceUnit;
+    private final ResetMode resetMode;
+    private final MotionStateSource source;
 
     private MotionState motionState;
-    private final ResetMode resetMode;
 
     public PinpointLocalizer(HardwareMap hardwareMap, PinpointConfig config) {
         this.globalDistanceUnit = config.globalDistanceUnit.get();
@@ -45,31 +47,29 @@ public class PinpointLocalizer implements Localizer {
         );
 
         resetMode = config.resetMode.get();
+        source = this::readDevice;
 
         reset();
         update();
     }
 
-    public void setPose(Pose pose) {
-        pinpoint.setPosition(
-                new Pose2D(
-                        globalDistanceUnit,
-                        pose.x(),
-                        pose.y(),
-                        AngleUnit.RADIANS,
-                        pose.heading()
-                )
-        );
-
-        if (motionState != null) {
-            motionState = motionState.withPose(pose);
-        } else {
-            motionState = MotionState.ofVelocity(pose, Velocity.zero());
-        }
+    /**
+     * Creates a localizer from an injected pose/velocity snapshot. Does not read I2C.
+     * Reset and setPose are software-only and do not configure or write the Pinpoint.
+     *
+     * <p>Values must already be in Pedro units (same as the HardwareMap path would report).
+     * The callback may come from a cycle-level cache, a simulator, or a replay.
+     */
+    public PinpointLocalizer(MotionStateSource source) {
+        this.pinpoint = null;
+        this.globalDistanceUnit = DistanceUnit.INCH;
+        this.resetMode = ResetMode.NONE;
+        this.source = source;
+        this.motionState = MotionState.zero();
+        update();
     }
 
-    @Override
-    public void update() {
+    private MotionState readDevice() {
         pinpoint.update();
 
         Pose pose = new Pose(
@@ -84,7 +84,32 @@ public class PinpointLocalizer implements Localizer {
                 pinpoint.getHeadingVelocity(UnnormalizedAngleUnit.RADIANS)
         );
 
-        motionState = MotionState.ofVelocity(pose, velocity);
+        return MotionState.ofVelocity(pose, velocity);
+    }
+
+    public void setPose(Pose pose) {
+        if (pinpoint != null) {
+            pinpoint.setPosition(
+                    new Pose2D(
+                            globalDistanceUnit,
+                            pose.x(),
+                            pose.y(),
+                            AngleUnit.RADIANS,
+                            pose.heading()
+                    )
+            );
+        }
+
+        if (motionState != null) {
+            motionState = motionState.withPose(pose);
+        } else {
+            motionState = MotionState.ofVelocity(pose, Velocity.zero());
+        }
+    }
+
+    @Override
+    public void update() {
+        motionState = source.state();
     }
 
     @Override
@@ -93,6 +118,10 @@ public class PinpointLocalizer implements Localizer {
     }
 
     public void reset() {
+        if (pinpoint == null) {
+            return;
+        }
+
         if (resetMode == ResetMode.RESET_AND_RECALIBRATE_IMU) {
             pinpoint.resetPosAndIMU();
         } else if (resetMode == ResetMode.RECALIBRATE_IMU) {

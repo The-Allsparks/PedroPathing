@@ -2,6 +2,7 @@ package com.pedropathing.revhub.localizers;
 
 import com.pedropathing.localization.Localizer;
 import com.pedropathing.localization.MotionState;
+import com.pedropathing.localization.MotionStateSource;
 import com.pedropathing.math.Pose;
 import com.pedropathing.math.Velocity;
 import com.qualcomm.hardware.digitalchickenlabs.OctoQuad;
@@ -10,14 +11,16 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import com.qualcomm.hardware.digitalchickenlabs.OctoQuad.*;
 
 public class OctoQuadLocalizer implements Localizer {
-    private final LocalizerDataBlock localizer = new LocalizerDataBlock();
+    private final LocalizerDataBlock localizer;
     public final OctoQuad octoQuad;
     private final DistanceUnit globalDistanceUnit;
+    private final MotionStateSource source;
 
     private MotionState motionState;
 
     public OctoQuadLocalizer(HardwareMap hardwareMap, OctoQuadConfig config) {
         octoQuad = hardwareMap.get(OctoQuad.class, config.name.get());
+        localizer = new LocalizerDataBlock();
 
         globalDistanceUnit = config.globalDistanceUnit.get();
 
@@ -39,6 +42,8 @@ public class OctoQuadLocalizer implements Localizer {
         );
         octoQuad.setI2cRecoveryMode(config.i2cRecoveryMode.get());
 
+        source = this::readDevice;
+
         reset();
 
         while (octoQuad.getLocalizerStatus() != LocalizerStatus.RUNNING) {}
@@ -46,12 +51,26 @@ public class OctoQuadLocalizer implements Localizer {
         update();
     }
 
-    @Override
-    public void update() {
+    /**
+     * Creates a localizer from an injected pose/velocity snapshot. Does not read I2C.
+     * Reset and setPose are software-only and do not configure or write the OctoQuad.
+     *
+     * <p>Values must already be in Pedro units (same as the HardwareMap path would report).
+     */
+    public OctoQuadLocalizer(MotionStateSource source) {
+        this.octoQuad = null;
+        this.localizer = null;
+        this.globalDistanceUnit = DistanceUnit.INCH;
+        this.source = source;
+        this.motionState = MotionState.zero();
+        update();
+    }
+
+    private MotionState readDevice() {
         octoQuad.readLocalizerData(localizer);
 
         if (!localizer.isDataValid()) {
-            return;
+            return motionState;
         }
 
         Pose pose = new Pose(
@@ -66,12 +85,19 @@ public class OctoQuadLocalizer implements Localizer {
                 localizer.velHeading_radS
         );
 
-        motionState = MotionState.ofVelocity(pose, velocity);
+        return MotionState.ofVelocity(pose, velocity);
+    }
+
+    @Override
+    public void update() {
+        motionState = source.state();
     }
 
     @Override
     public void setPose(Pose pose) {
-        octoQuad.setLocalizerPose((int) globalDistanceUnit.toMm(pose.x()), (int) globalDistanceUnit.toMm(pose.y()), (float) pose.heading());
+        if (octoQuad != null) {
+            octoQuad.setLocalizerPose((int) globalDistanceUnit.toMm(pose.x()), (int) globalDistanceUnit.toMm(pose.y()), (float) pose.heading());
+        }
 
         if (motionState != null) {
             motionState = motionState.withPose(pose);
@@ -87,6 +113,9 @@ public class OctoQuadLocalizer implements Localizer {
 
     @Override
     public void reset() {
+        if (octoQuad == null) {
+            return;
+        }
         octoQuad.resetLocalizerAndCalibrateIMU();
     }
 }

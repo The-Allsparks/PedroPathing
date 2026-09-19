@@ -2,6 +2,7 @@ package com.pedropathing.revhub.localizers;
 
 import com.pedropathing.localization.Localizer;
 import com.pedropathing.localization.MotionState;
+import com.pedropathing.localization.MotionStateSource;
 import com.pedropathing.math.Pose;
 import com.pedropathing.math.Velocity;
 import com.qualcomm.hardware.sparkfun.SparkFunOTOS;
@@ -10,6 +11,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 
 public class OTOSLocalizer implements Localizer {
     private final SparkFunOTOS otos;
+    private final MotionStateSource source;
 
     private MotionState motionState;
 
@@ -31,17 +33,51 @@ public class OTOSLocalizer implements Localizer {
         otos.calibrateImu();
         otos.resetTracking();
 
+        source = this::readDevice;
         update();
     }
 
+    /**
+     * Creates a localizer from an injected pose/velocity snapshot. Does not read I2C.
+     * Reset and setPose are software-only and do not configure or write the OTOS.
+     *
+     * <p>Values must already use Pedro's heading convention. Use {@link #fromSensor} if the
+     * snapshot is still in OTOS sensor heading.
+     */
+    public OTOSLocalizer(MotionStateSource source) {
+        this.otos = null;
+        this.source = source;
+        this.motionState = MotionState.zero();
+        update();
+    }
+
+    /**
+     * Converts OTOS sensor pose/velocity into Pedro's heading convention (subtract π/2).
+     */
+    public static MotionState fromSensor(double x, double y, double heading,
+                                         double vx, double vy, double omega) {
+        return MotionState.ofVelocity(
+                new Pose(x, y, heading - Math.PI / 2),
+                new Velocity(vx, vy, omega));
+    }
+
+    private MotionState readDevice() {
+        SparkFunOTOS.Pose2D pose2D = otos.getPosition();
+        SparkFunOTOS.Pose2D velocity2D = otos.getVelocity();
+
+        return fromSensor(pose2D.x, pose2D.y, pose2D.h, velocity2D.x, velocity2D.y, velocity2D.h);
+    }
+
     public void setPose(Pose pose) {
-        otos.setPosition(
-                new SparkFunOTOS.Pose2D(
-                        pose.x(),
-                        pose.y(),
-                        pose.heading() + Math.PI / 2
-                )
-        );
+        if (otos != null) {
+            otos.setPosition(
+                    new SparkFunOTOS.Pose2D(
+                            pose.x(),
+                            pose.y(),
+                            pose.heading() + Math.PI / 2
+                    )
+            );
+        }
 
         if (motionState != null) {
             motionState = motionState.withPose(pose);
@@ -52,22 +88,7 @@ public class OTOSLocalizer implements Localizer {
 
     @Override
     public void update() {
-        SparkFunOTOS.Pose2D pose2D = otos.getPosition();
-        SparkFunOTOS.Pose2D velocity2D = otos.getVelocity();
-
-        Pose pose = new Pose(
-                pose2D.x,
-                pose2D.y,
-                pose2D.h - Math.PI / 2
-        );
-
-        Velocity velocity = new Velocity(
-                velocity2D.x,
-                velocity2D.y,
-                velocity2D.h
-        );
-
-        motionState = MotionState.ofVelocity(pose, velocity);
+        motionState = source.state();
     }
 
     @Override
@@ -76,6 +97,9 @@ public class OTOSLocalizer implements Localizer {
     }
 
     public void reset() {
+        if (otos == null) {
+            return;
+        }
         otos.resetTracking();
     }
 }
