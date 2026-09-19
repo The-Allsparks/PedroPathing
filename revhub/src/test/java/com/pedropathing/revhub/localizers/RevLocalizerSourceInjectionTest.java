@@ -148,6 +148,8 @@ public class RevLocalizerSourceInjectionTest {
         assertNotNull(TwoWheelLocalizer.class.getConstructor(HardwareMap.class, TwoWheelConfig.class));
         assertNotNull(ThreeWheelIMULocalizer.class.getConstructor(
                 HardwareMap.class, ThreeWheelIMUConfig.class));
+        assertNotNull(DriveEncoderLocalizer.class.getConstructor(
+                HardwareMap.class, DriveEncoderConfig.class));
         assertNotNull(Encoder.class.getConstructor(com.qualcomm.robotcore.hardware.DcMotorEx.class));
     }
 
@@ -179,6 +181,64 @@ public class RevLocalizerSourceInjectionTest {
                 externalSnapshot::strafeTicks);
         assertNotNull(localizer.pose());
         assertNotNull(localizer.state());
+    }
+
+    @Test
+    public void driveEncoderInjectedSourcesAreReadOncePerUpdate() {
+        CountingIntSupplier frontLeft = new CountingIntSupplier();
+        CountingIntSupplier frontRight = new CountingIntSupplier();
+        CountingIntSupplier backLeft = new CountingIntSupplier();
+        CountingIntSupplier backRight = new CountingIntSupplier();
+        DriveEncoderLocalizer localizer = new DriveEncoderLocalizer(
+                driveEncoderConfig(), frontLeft, frontRight, backLeft, backRight);
+        zero(frontLeft, frontRight, backLeft, backRight);
+
+        frontLeft.value = 10;
+        frontRight.value = 10;
+        backLeft.value = 10;
+        backRight.value = 10;
+        localizer.update();
+        assertEquals(1, frontLeft.calls);
+        assertEquals(1, frontRight.calls);
+        assertEquals(1, backLeft.calls);
+        assertEquals(1, backRight.calls);
+        assertEquals(40.0, localizer.pose().x(), EPS);
+        assertEquals(0.0, localizer.pose().y(), EPS);
+        assertEquals(0.0, localizer.pose().heading(), EPS);
+
+        queryState(localizer);
+        assertEquals(1, frontLeft.calls);
+        assertEquals(1, frontRight.calls);
+        assertEquals(1, backLeft.calls);
+        assertEquals(1, backRight.calls);
+    }
+
+    @Test
+    public void driveEncoderInjectedResetIsSoftwareRebase() {
+        CountingIntSupplier frontLeft = new CountingIntSupplier();
+        CountingIntSupplier frontRight = new CountingIntSupplier();
+        CountingIntSupplier backLeft = new CountingIntSupplier();
+        CountingIntSupplier backRight = new CountingIntSupplier();
+        DriveEncoderLocalizer localizer = new DriveEncoderLocalizer(
+                driveEncoderConfig(), frontLeft, frontRight, backLeft, backRight);
+
+        frontLeft.value = 10;
+        frontRight.value = 10;
+        backLeft.value = 10;
+        backRight.value = 10;
+        localizer.update();
+        assertEquals(40.0, localizer.pose().x(), EPS);
+
+        zero(frontLeft, frontRight, backLeft, backRight);
+        localizer.setPose(new Pose(1, 2, 0.1));
+        assertEquals(1, frontLeft.calls);
+        assertEquals(1.0, localizer.pose().x(), EPS);
+        assertEquals(2.0, localizer.pose().y(), EPS);
+
+        zero(frontLeft, frontRight, backLeft, backRight);
+        localizer.update();
+        assertEquals(1, frontLeft.calls);
+        assertEquals(1.0, localizer.pose().x(), EPS);
     }
 
     private static void queryState(Localizer localizer) {
@@ -217,6 +277,20 @@ public class RevLocalizerSourceInjectionTest {
             c.strafeTicksToInches.set(1.0);
             c.xPodDirection.set(Encoder.FORWARD);
             c.yPodDirection.set(Encoder.FORWARD);
+        });
+    }
+
+    private static DriveEncoderConfig driveEncoderConfig() {
+        return new DriveEncoderConfig(c -> {
+            c.robotWidth.set(1.0);
+            c.robotLength.set(1.0);
+            c.forwardTicksToInches.set(1.0);
+            c.strafeTicksToInches.set(1.0);
+            c.turnTicksToRadians.set(1.0);
+            c.frontLeftDirection.set(Encoder.FORWARD);
+            c.frontRightDirection.set(Encoder.FORWARD);
+            c.backLeftDirection.set(Encoder.FORWARD);
+            c.backRightDirection.set(Encoder.FORWARD);
         });
     }
 
