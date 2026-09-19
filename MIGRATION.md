@@ -21,6 +21,7 @@ TeamCode still needs an explicit `:core` jar on the APK (AGP does not dex the ja
 
 - `Constants.createFollower` builds Mecanum + DriveEncoderLocalizer + Foresight
 - PULSE injection overload does not reread motors
+- Pinpoint / OTOS / OctoQuad HardwareMap constructors stay; injected `MotionStateSource` constructors do not reread I2C
 - `Tuning.java` is a slim localization stick test, not the 2.2 Quickstart menu
 - Path poses are inches (`Lengths.TILE_INCHES`)
 

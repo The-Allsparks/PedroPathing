@@ -4,8 +4,14 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 import com.pedropathing.localization.Localizer;
+import com.pedropathing.localization.MotionState;
+import com.pedropathing.localization.MotionStateSource;
 import com.pedropathing.math.Pose;
+import com.pedropathing.math.Velocity;
 import com.qualcomm.robotcore.hardware.HardwareMap;
+
+import java.util.function.DoubleSupplier;
+import java.util.function.IntSupplier;
 
 import org.junit.Test;
 
@@ -150,7 +156,26 @@ public class RevLocalizerSourceInjectionTest {
                 HardwareMap.class, ThreeWheelIMUConfig.class));
         assertNotNull(DriveEncoderLocalizer.class.getConstructor(
                 HardwareMap.class, DriveEncoderConfig.class));
+        assertNotNull(PinpointLocalizer.class.getConstructor(
+                HardwareMap.class, PinpointConfig.class));
+        assertNotNull(OTOSLocalizer.class.getConstructor(HardwareMap.class, OTOSConfig.class));
+        assertNotNull(OctoQuadLocalizer.class.getConstructor(
+                HardwareMap.class, OctoQuadConfig.class));
         assertNotNull(Encoder.class.getConstructor(com.qualcomm.robotcore.hardware.DcMotorEx.class));
+
+        assertNotNull(ThreeWheelLocalizer.class.getConstructor(
+                ThreeWheelConfig.class, IntSupplier.class, IntSupplier.class, IntSupplier.class));
+        assertNotNull(TwoWheelLocalizer.class.getConstructor(
+                TwoWheelConfig.class, IntSupplier.class, IntSupplier.class, DoubleSupplier.class));
+        assertNotNull(ThreeWheelIMULocalizer.class.getConstructor(
+                ThreeWheelIMUConfig.class, IntSupplier.class, IntSupplier.class, IntSupplier.class,
+                DoubleSupplier.class));
+        assertNotNull(DriveEncoderLocalizer.class.getConstructor(
+                DriveEncoderConfig.class, IntSupplier.class, IntSupplier.class, IntSupplier.class,
+                IntSupplier.class));
+        assertNotNull(PinpointLocalizer.class.getConstructor(MotionStateSource.class));
+        assertNotNull(OTOSLocalizer.class.getConstructor(MotionStateSource.class));
+        assertNotNull(OctoQuadLocalizer.class.getConstructor(MotionStateSource.class));
     }
 
     @Test
@@ -239,6 +264,78 @@ public class RevLocalizerSourceInjectionTest {
         localizer.update();
         assertEquals(1, frontLeft.calls);
         assertEquals(1.0, localizer.pose().x(), EPS);
+    }
+
+    @Test
+    public void pinpointInjectedSourceIsReadOncePerUpdate() {
+        assertInjectedPoseLocalizerReadsOnce(source -> new PinpointLocalizer(source));
+    }
+
+    @Test
+    public void otosInjectedSourceIsReadOncePerUpdate() {
+        assertInjectedPoseLocalizerReadsOnce(source -> new OTOSLocalizer(source));
+    }
+
+    @Test
+    public void octoQuadInjectedSourceIsReadOncePerUpdate() {
+        assertInjectedPoseLocalizerReadsOnce(source -> new OctoQuadLocalizer(source));
+    }
+
+    @Test
+    public void injectedPoseLocalizerResetAndSetPoseDoNotReadHardware() {
+        assertInjectedPoseLocalizerResetAndSetPoseDoNotReadHardware(
+                source -> new PinpointLocalizer(source));
+        assertInjectedPoseLocalizerResetAndSetPoseDoNotReadHardware(
+                source -> new OTOSLocalizer(source));
+        assertInjectedPoseLocalizerResetAndSetPoseDoNotReadHardware(
+                source -> new OctoQuadLocalizer(source));
+    }
+
+    @Test
+    public void otosFromSensorAppliesPedroHeadingConvention() {
+        MotionState state = OTOSLocalizer.fromSensor(1, 2, Math.PI / 2, 3, 4, 5);
+        assertEquals(1.0, state.pose().x(), EPS);
+        assertEquals(2.0, state.pose().y(), EPS);
+        assertEquals(0.0, state.pose().heading(), EPS);
+        assertEquals(3.0, state.velocity().vx, EPS);
+        assertEquals(4.0, state.velocity().vy, EPS);
+        assertEquals(5.0, state.velocity().omega, EPS);
+    }
+
+    private static void assertInjectedPoseLocalizerReadsOnce(
+            java.util.function.Function<MotionStateSource, Localizer> factory) {
+        CountingMotionStateSource source = new CountingMotionStateSource();
+        Localizer localizer = factory.apply(source);
+        source.calls = 0;
+        source.value = MotionState.ofVelocity(new Pose(1, 2, 0.25), new Velocity(4, 5, 6));
+
+        localizer.update();
+        assertEquals(1, source.calls);
+        assertEquals(1.0, localizer.pose().x(), EPS);
+        assertEquals(2.0, localizer.pose().y(), EPS);
+        assertEquals(0.25, localizer.pose().heading(), EPS);
+        assertEquals(4.0, localizer.velocity().vx, EPS);
+        assertEquals(5.0, localizer.velocity().vy, EPS);
+        assertEquals(6.0, localizer.velocity().omega, EPS);
+
+        queryState(localizer);
+        assertEquals(1, source.calls);
+    }
+
+    private static void assertInjectedPoseLocalizerResetAndSetPoseDoNotReadHardware(
+            java.util.function.Function<MotionStateSource, Localizer> factory) {
+        CountingMotionStateSource source = new CountingMotionStateSource();
+        Localizer localizer = factory.apply(source);
+        source.calls = 0;
+
+        localizer.setPose(new Pose(3, 4, 0.2));
+        assertEquals(0, source.calls);
+        assertEquals(3.0, localizer.pose().x(), EPS);
+        assertEquals(4.0, localizer.pose().y(), EPS);
+
+        localizer.reset();
+        assertEquals(0, source.calls);
+        assertEquals(3.0, localizer.pose().x(), EPS);
     }
 
     private static void queryState(Localizer localizer) {

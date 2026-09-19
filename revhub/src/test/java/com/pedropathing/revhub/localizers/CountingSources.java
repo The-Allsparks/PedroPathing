@@ -1,5 +1,8 @@
 package com.pedropathing.revhub.localizers;
 
+import com.pedropathing.localization.MotionState;
+import com.pedropathing.localization.MotionStateSource;
+
 import java.util.function.DoubleSupplier;
 import java.util.function.IntSupplier;
 
@@ -36,6 +39,23 @@ final class CountingDoubleSupplier implements DoubleSupplier {
 
     @Override
     public double getAsDouble() {
+        calls++;
+        return value;
+    }
+}
+
+final class CountingMotionStateSource implements MotionStateSource {
+    MotionState value = MotionState.zero();
+    int calls;
+
+    CountingMotionStateSource() {}
+
+    CountingMotionStateSource(MotionState value) {
+        this.value = value;
+    }
+
+    @Override
+    public MotionState state() {
         calls++;
         return value;
     }
